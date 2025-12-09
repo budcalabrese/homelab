@@ -1,0 +1,39 @@
+# CRITICAL: SECRETS - NEVER COMMIT
+.env
+.env.*
+!.env.template
+!.env.*.template
+*.key
+*.pem
+secrets/
+credentials/
+
+# Docker volumes and data
+*/data/
+*/config/
+container_configs/*/data/
+container_configs/*/config/
+
+# Logs
+*.log
+logs/
+
+# Backups (may contain secrets)
+backups/
+*.backup
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary
+tmp/
+temp/
+*.tmp

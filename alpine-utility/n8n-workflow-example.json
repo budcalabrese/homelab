@@ -1,0 +1,96 @@
+{
+  "name": "Docker Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "Runs daily at 9 AM"
+    },
+    {
+      "parameters": {
+        "authentication": "password",
+        "host": "alpine-utility",
+        "port": 22,
+        "username": "root",
+        "password": "={{ $env.ALPINE_UTILITY_PASSWORD }}",
+        "command": "/scripts/docker-monitor.sh"
+      },
+      "name": "SSH - Run Monitor Script",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "notes": "Executes the monitoring script via SSH"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the JSON output from the monitoring script\nconst data = JSON.parse($input.first().json.stdout);\n\n// Find containers with issues\nconst issues = [];\nconst stopped = [];\n\nfor (const container of data.containers) {\n  // Check for stopped containers\n  if (container.status !== 'running') {\n    stopped.push(container.name);\n  }\n  \n  // Check for errors\n  if (container.errors && container.errors.trim() !== '') {\n    issues.push({\n      name: container.name,\n      type: 'error',\n      details: container.errors\n    });\n  }\n  \n  // Check for unhealthy containers\n  if (container.health === 'unhealthy') {\n    issues.push({\n      name: container.name,\n      type: 'unhealthy',\n      details: 'Container health check failing'\n    });\n  }\n  \n  // Check for excessive restarts\n  if (container.restarts > 5) {\n    issues.push({\n      name: container.name,\n      type: 'restarts',\n      details: `Container has restarted ${container.restarts} times`\n    });\n  }\n}\n\n// Build HTML email content\nlet html = '<h2>Docker Health Report</h2>';\nhtml += `<p><strong>Report Time:</strong> ${data.timestamp}</p>`;\nhtml += `<p><strong>Summary:</strong> ${data.summary.running}/${data.summary.total} containers running</p>`;\n\nif (stopped.length > 0) {\n  html += '<h3 style=\"color: orange;\">⚠️ Stopped Containers</h3><ul>';\n  stopped.forEach(name => {\n    html += `<li>${name}</li>`;\n  });\n  html += '</ul>';\n}\n\nif (issues.length > 0) {\n  html += '<h3 style=\"color: red;\">🚨 Issues Detected</h3>';\n  issues.forEach(issue => {\n    html += `<div style=\"border: 1px solid #ddd; padding: 10px; margin: 10px 0;\">`;\n    html += `<strong>${issue.name}</strong> - ${issue.type}<br>`;\n    html += `<pre style=\"background: #f5f5f5; padding: 5px;\">${issue.details}</pre>`;\n    html += `</div>`;\n  });\n} else {\n  html += '<h3 style=\"color: green;\">✅ All Systems Healthy</h3>';\n}\n\nhtml += '<h3>All Containers</h3><table border=\"1\" cellpadding=\"5\" style=\"border-collapse: collapse;\">';\nhtml += '<tr><th>Container</th><th>Status</th><th>Health</th><th>Restarts</th></tr>';\n\nfor (const container of data.containers) {\n  const statusColor = container.status === 'running' ? 'green' : 'red';\n  html += `<tr>`;\n  html += `<td>${container.name}</td>`;\n  html += `<td style=\"color: ${statusColor};\">${container.status}</td>`;\n  html += `<td>${container.health}</td>`;\n  html += `<td>${container.restarts}</td>`;\n  html += `</tr>`;\n}\n\nhtml += '</table>';\n\nreturn {\n  json: {\n    emailSubject: issues.length > 0 ? `⚠️ Docker Issues Detected (${issues.length})` : '✅ Docker Health Report - All Good',\n    emailBody: html,\n    hasIssues: issues.length > 0,\n    issueCount: issues.length,\n    stoppedCount: stopped.length\n  }\n};"
+      },
+      "name": "Process & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "notes": "Parses JSON and creates formatted HTML email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "homelab@yourdomain.com",
+        "toEmail": "your-email@gmail.com",
+        "subject": "={{ $json.emailSubject }}",
+        "emailType": "html",
+        "message": "={{ $json.emailBody }}"
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "notes": "Configure your SMTP settings in n8n credentials"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "SSH - Run Monitor Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH - Run Monitor Script": {
+      "main": [
+        [
+          {
+            "node": "Process & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process & Format": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
