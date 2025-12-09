@@ -199,6 +199,34 @@ git diff --cached | grep -iE "password|api_key|secret|token|authkey"
 git ls-files | grep "\.env"  # Should ONLY show .env.template files
 ```
 
+## Utility Scripts
+
+The `scripts/` directory contains utility scripts for homelab maintenance:
+
+### homelab_update.sh
+Updates all homelab components:
+- Updates Ollama models
+- Updates Docker container images
+- Rebuilds and restarts containers
+- Prunes unused Docker images
+- Updates Homebrew packages
+
+Usage:
+```bash
+bash scripts/homelab_update.sh
+```
+
+### gitea_backup.sh
+Backs up Gitea database and repositories:
+- Creates SQLite database backup
+- Archives all Git repositories
+- Stores backups in `/Volumes/backups/gitea/`
+
+Usage:
+```bash
+bash scripts/gitea_backup.sh
+```
+
 ## Backup Strategy
 
 ### What to Backup
