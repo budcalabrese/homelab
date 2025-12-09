@@ -10,14 +10,21 @@ This is a **templates-only** repository containing Docker Compose configurations
 
 ### Secrets Management
 - **Actual secrets**: Stored in local Gitea `homelab-secrets` repo (NEVER on GitHub)
-- **This repo**: Contains only `.env.template` files for documentation
-- `.gitignore` is configured to block all `.env` files except `.template` variants
+- **This repo**: Contains only `env/.env.*.template` files for documentation
+- `.gitignore` is configured to block all `env/.env*` files except `.template` variants
+- **Env folder**: All environment files organized in `env/` directory (cleaner root)
 
 ### Service Organization
 - **Karakeep** (formerly Hoarder): Bookmark manager - replaced Linkwarden in December 2024
   - Uses 3 containers: karakeep, karakeep-meilisearch, karakeep-chrome
-  - Requires `NEXTAUTH_SECRET` and `MEILI_MASTER_KEY` in `.env.karakeep`
+  - Requires `NEXTAUTH_SECRET` and `MEILI_MASTER_KEY` in `env/.env.karakeep`
   - No PostgreSQL database (simpler than Linkwarden)
+
+### Stack Organization (New - December 2024)
+- **Automation stacks**: Pre-built workflows organized by use case
+  - `podcast-automation/` - Bookmark-to-podcast pipeline with n8n
+  - Future stacks: monitoring, backups, media automation
+- Each stack has own README and workflows (self-contained)
 
 ### Data Persistence
 - All service data: `/Volumes/docker/container_configs/{service-name}/`
@@ -35,7 +42,7 @@ This is a **templates-only** repository containing Docker Compose configurations
 
 ### Adding a New Service
 1. Add service definition to `compose.yml`
-2. Create `.env.{service}.template` if service needs secrets
+2. Create `env/.env.{service}.template` if service needs secrets
 3. Update README.md port mappings and service list
 4. Test deployment locally
 5. Commit changes to GitHub
@@ -43,15 +50,16 @@ This is a **templates-only** repository containing Docker Compose configurations
 ### Security Checks Before Commit
 ```bash
 git status
-git check-ignore .env  # Should output: .env
+git check-ignore env/.env  # Should output: env/.env
 git diff --cached | grep -iE "password|api_key|secret|token"
+git ls-files | grep "env/"  # Should ONLY show .template files
 ```
 
 ### Environment File Pattern
-- `.env` - Main shared variables (gitignored)
-- `.env.{service}` - Service-specific secrets (gitignored)
-- `.env.template` - Documentation of required variables (committed)
-- `.env.{service}.template` - Service-specific template (committed)
+- `env/.env` - Main shared variables (gitignored)
+- `env/.env.{service}` - Service-specific secrets (gitignored)
+- `env/.env.template` - Documentation of required variables (committed)
+- `env/.env.{service}.template` - Service-specific template (committed)
 
 ## Migration History
 
@@ -81,24 +89,29 @@ Some services build from local source code:
 - `youtube-transcripts-api`: `/Users/bud/home_space/coding/youtube-transcripts-api`
 - `alpine-utility`: `./alpine-utility` (local Dockerfile)
 
-## Related Planning Documents
+## Documentation Structure
 
-Located in `/Users/bud/home_space/home/homelab/`:
-- `buds-productivity-system-plan.md` - Overall productivity system design
-- `github-repo-structure-plan.md` - Repo organization strategy
-- `karakeep-podcast-workflow.md` - Planned n8n automation for bookmark → podcast
+Located in `docs/`:
+- `open-notebook-setup.md` - Local AI podcast generation with Qwen2.5
+- `karakeep-api-reference.md` - Complete Karakeep REST API documentation
+- `karakeep-podcast-workflow.md` - Full automation workflow design
+- `buds-productivity-system-plan.md` - Overall productivity system
+- `github-repo-structure-plan.md` - Repository organization
 
-## Future Enhancements
+Located in `podcast-automation/`:
+- `README.md` - 15-minute quick start guide
+- `n8n-workflows/` - Daily podcast generation & cleanup workflows
 
-1. **Karakeep Podcast Workflow** (see karakeep-podcast-workflow.md):
-   - Daily n8n workflow to convert bookmarks → podcasts via Open Notebook
-   - Automated cleanup of old bookmarks
-   - Integration with AudioBookShelf for playback
+## Completed: Podcast Automation Stack ✅
 
-2. **Gitea homelab-secrets Repo**:
-   - Phase 4 of repo structure plan
-   - Store actual `.env` files
-   - Local-only, never pushed to GitHub
+**Achievement** (December 2024):
+- Fully local AI podcast generation (Qwen2.5 + OpenEDAI Speech)
+- Automated bookmark-to-podcast pipeline via n8n
+- Daily workflows: 2PM generation, 3AM cleanup
+- 100% local processing, no cloud APIs
+- ~4.7 minutes per 5-segment podcast
+
+See `podcast-automation/README.md` for setup guide.
 
 ## Important Reminders
 

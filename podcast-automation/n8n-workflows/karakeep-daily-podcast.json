@@ -1,0 +1,462 @@
+{
+  "name": "Karakeep Daily Podcast Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 14 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily at 2PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "date",
+              "name": "currentDate",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp24h",
+              "name": "timestamp24HoursAgo",
+              "value": "={{ $now.minus({ hours: 24 }).toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Date Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://karakeep:3000/api/v1/bookmarks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "100"
+            },
+            {
+              "name": "includeContent",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Recent Bookmarks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Karakeep API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter bookmarks from last 24 hours and group by primary tag\nconst timestamp24HoursAgo = new Date($input.first().json.timestamp24HoursAgo);\nconst bookmarks = $input.first().json.bookmarks || [];\n\n// Filter bookmarks from last 24 hours\nconst recentBookmarks = bookmarks.filter(bookmark => {\n  const created = new Date(bookmark.createdAt);\n  return created > timestamp24HoursAgo;\n});\n\nif (recentBookmarks.length === 0) {\n  return [];\n}\n\n// Group by primary tag\nconst tagGroups = {};\nrecentBookmarks.forEach(bookmark => {\n  if (bookmark.tags && bookmark.tags.length > 0) {\n    const primaryTag = bookmark.tags[0].name;\n    if (!tagGroups[primaryTag]) {\n      tagGroups[primaryTag] = [];\n    }\n    tagGroups[primaryTag].push(bookmark);\n  }\n});\n\n// Filter groups with 2+ bookmarks and create output\nconst result = [];\nfor (const [tag, items] of Object.entries(tagGroups)) {\n  if (items.length >= 2) {\n    result.push({\n      tag: tag,\n      bookmarkCount: items.length,\n      bookmarks: items,\n      currentDate: $input.first().json.currentDate\n    });\n  }\n}\n\nreturn result.map(item => ({ json: item }));"
+      },
+      "name": "Filter and Group by Tag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Any Tag Groups?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {},
+      "name": "No Podcasts Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Process Each Tag Group",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build markdown content from bookmarks\nconst tag = $input.item.json.tag;\nconst bookmarks = $input.item.json.bookmarks;\nconst currentDate = $input.item.json.currentDate;\n\nlet markdown = `# Daily Digest - ${tag} - ${currentDate}\\n\\n`;\n\nbookmarks.forEach((bookmark, index) => {\n  markdown += `## Article ${index + 1}: ${bookmark.title || 'Untitled'}\\n`;\n  markdown += `Source: ${bookmark.url || 'No URL'}\\n\\n`;\n  \n  if (bookmark.content) {\n    // Limit content to first 500 characters to avoid huge podcasts\n    const content = bookmark.content.substring(0, 500);\n    markdown += `${content}...\\n\\n`;\n  } else if (bookmark.description) {\n    markdown += `${bookmark.description}\\n\\n`;\n  }\n  \n  markdown += `---\\n\\n`;\n});\n\nreturn {\n  json: {\n    tag: tag,\n    currentDate: currentDate,\n    episodeName: `Daily Digest - ${tag} - ${currentDate}`,\n    markdownContent: markdown,\n    bookmarks: bookmarks,\n    bookmarkIds: bookmarks.map(b => b.id)\n  }\n};"
+      },
+      "name": "Build Markdown Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://open-notebook:5055/api/podcasts/generate",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "episode_profile",
+              "value": "tech_discussion_qwen"
+            },
+            {
+              "name": "speaker_profile",
+              "value": "tech_experts_local"
+            },
+            {
+              "name": "episode_name",
+              "value": "={{ $json.episodeName }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.markdownContent }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Podcast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "name": "Wait for Generation",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://open-notebook:5055/api/episodes/{{ $json.episode_id }}",
+        "authentication": "none",
+        "options": {}
+      },
+      "name": "Check Episode Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2050, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equals",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "name": "Is Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2250, 400]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "name": "Wait and Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://karakeep:3000/api/v1/bookmarks/{{ $item(0).json.bookmarkIds[$itemIndex] }}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tagNames",
+              "value": "=[\"podcasted\", \"podcasted-{{ $item(0).json.currentDate }}\"]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Tag Bookmarks as Podcasted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2450, 500],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Karakeep API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "name": "Continue to Next Tag",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2650, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build summary of all generated podcasts\nconst items = $input.all();\nconst podcasts = [];\n\nitems.forEach(item => {\n  if (item.json.episodeName && item.json.bookmarkCount) {\n    podcasts.push({\n      topic: item.json.tag,\n      articleCount: item.json.bookmarkCount,\n      episodeName: item.json.episodeName\n    });\n  }\n});\n\nif (podcasts.length === 0) {\n  return [{ json: { message: 'No podcasts generated today' } }];\n}\n\nconst summary = podcasts.map(p => `${p.topic} (${p.articleCount} articles)`).join(', ');\nconst message = `📻 ${podcasts.length} podcast${podcasts.length > 1 ? 's' : ''} ready: ${summary}`;\n\nreturn [{\n  json: {\n    message: message,\n    podcasts: podcasts,\n    count: podcasts.length\n  }\n}];"
+      },
+      "name": "Build Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2850, 400]
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "name": "Log Summary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [3050, 400]
+    }
+  ],
+  "connections": {
+    "Schedule Daily at 2PM": {
+      "main": [
+        [
+          {
+            "node": "Set Date Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Date Variables": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Bookmarks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Bookmarks": {
+      "main": [
+        [
+          {
+            "node": "Filter and Group by Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter and Group by Tag": {
+      "main": [
+        [
+          {
+            "node": "Any Tag Groups?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Tag Groups?": {
+      "main": [
+        [
+          {
+            "node": "No Podcasts Needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Each Tag Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Tag Group": {
+      "main": [
+        [
+          {
+            "node": "Build Markdown Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Markdown Content": {
+      "main": [
+        [
+          {
+            "node": "Generate Podcast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Podcast": {
+      "main": [
+        [
+          {
+            "node": "Wait for Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Generation": {
+      "main": [
+        [
+          {
+            "node": "Check Episode Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Episode Status": {
+      "main": [
+        [
+          {
+            "node": "Is Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Completed?": {
+      "main": [
+        [
+          {
+            "node": "Wait and Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tag Bookmarks as Podcasted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait and Retry": {
+      "main": [
+        [
+          {
+            "node": "Check Episode Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Bookmarks as Podcasted": {
+      "main": [
+        [
+          {
+            "node": "Continue to Next Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue to Next Tag": {
+      "main": [
+        [
+          {
+            "node": "Process Each Tag Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-08T00:00:00.000Z",
+  "versionId": "1"
+}

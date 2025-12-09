@@ -32,6 +32,30 @@ Docker-based homelab running on Mac Mini (Texas).
 - **YouTube Transcripts API** - REST API for video transcripts
 - **Alpine Utility** - Monitoring and health checks
 
+## Automation Stacks
+
+Pre-built automation workflows organized by use case:
+
+### 📻 Podcast Automation Stack
+**Location**: [`podcast-automation/`](podcast-automation/)
+
+Automated bookmark-to-podcast pipeline using Karakeep, Open Notebook, and n8n.
+
+**What it does**:
+- Daily at 2PM: Converts bookmarks to topic-based podcasts
+- Daily at 3AM: Cleans up old podcasted bookmarks
+- 100% local AI (Qwen2.5 + OpenEDAI Speech)
+
+**Quick Start**: See [podcast-automation/README.md](podcast-automation/README.md) (15-minute setup)
+
+**Components**:
+- Karakeep (bookmark capture with AI tagging)
+- Open Notebook (podcast generation)
+- n8n (workflow orchestration)
+- OpenEDAI Speech (local TTS)
+
+---
+
 ## Setup Instructions
 
 ### Initial Setup
@@ -44,17 +68,17 @@ Docker-based homelab running on Mac Mini (Texas).
 
 2. **Copy environment templates**
    ```bash
-   cp .env.template .env
-   cp .env.karakeep.template .env.karakeep
-   cp .env.open-notebook.template .env.open-notebook
-   cp .env.openedai-speech.template .env.openedai-speech
-   cp .env.tailscale.template .env.tailscale
+   cp env/.env.template env/.env
+   cp env/.env.karakeep.template env/.env.karakeep
+   cp env/.env.open-notebook.template env/.env.open-notebook
+   cp env/.env.openedai-speech.template env/.env.openedai-speech
+   cp env/.env.tailscale.template env/.env.tailscale
    ```
 
-3. **Edit `.env` files with actual secrets**
+3. **Edit `env/.env` files with actual secrets**
    - Get actual values from `homelab-secrets` Gitea repo (local only)
    - Or generate new secrets using secure random generators
-   - **NEVER commit actual `.env` files!**
+   - **NEVER commit actual `env/.env` files!**
 
 4. **Create required directories**
    ```bash
@@ -195,8 +219,9 @@ git diff --cached
 # Search for potential secrets
 git diff --cached | grep -iE "password|api_key|secret|token|authkey"
 
-# List all files to be committed
-git ls-files | grep "\.env"  # Should ONLY show .env.template files
+# Verify no actual env files are being committed
+git ls-files | grep "env/"  # Should ONLY show env/.env.*.template files
+git check-ignore env/.env  # Should output: env/.env
 ```
 
 ## Utility Scripts
@@ -231,18 +256,29 @@ bash scripts/gitea_backup.sh
 
 ### What to Backup
 - `/Volumes/docker/container_configs/` - All service data
-- `.env` files (store in Gitea `homelab-secrets` repo)
+- `env/.env*` files (store in Gitea `homelab-secrets` repo)
 - This Git repository structure
 
 ### Automated Backups
 See `alpine-utility/docker-monitor.sh` for automated health checks and monitoring.
+
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+- **[Open Notebook Setup](docs/open-notebook-setup.md)** - Local AI podcast generation configuration
+- **[Karakeep API Reference](docs/karakeep-api-reference.md)** - REST API documentation and examples
+- **[Karakeep Podcast Workflow](docs/karakeep-podcast-workflow.md)** - Automated bookmark-to-podcast pipeline
+- **[Productivity System Plan](docs/buds-productivity-system-plan.md)** - Overall system design
+- **[GitHub Repo Structure](docs/github-repo-structure-plan.md)** - Repository organization
+
+See [docs/README.md](docs/README.md) for complete documentation index.
 
 ## Related Repositories
 
 - **Productivity System**: `obsidian-vault` repo
 - **Personal Projects**: `coding` repo
 - **Secrets**: `homelab-secrets` repo (Gitea only - never on GitHub)
-- **System Plans**: See `buds-productivity-system-plan.md` in planning docs
 
 ## Troubleshooting
 

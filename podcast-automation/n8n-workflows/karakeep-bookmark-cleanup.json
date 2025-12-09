@@ -1,0 +1,298 @@
+{
+  "name": "Karakeep Bookmark Cleanup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily at 3AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cutoffDate",
+              "name": "sevenDaysAgo",
+              "value": "={{ $now.minus({ days: 7 }).toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Calculate Cutoff Date",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://karakeep:3000/api/v1/bookmarks/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "tags",
+              "value": "podcasted"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Podcasted Bookmarks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Karakeep API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter bookmarks for deletion:\n// - Tagged with \"podcasted\"\n// - Older than 7 days\n// - NOT starred/favourited\n\nconst sevenDaysAgo = new Date($input.first().json.sevenDaysAgo);\nconst bookmarks = $input.first().json.bookmarks || [];\n\nconst toDelete = bookmarks.filter(bookmark => {\n  const created = new Date(bookmark.createdAt);\n  const isOld = created < sevenDaysAgo;\n  const notStarred = !bookmark.favourited;\n  \n  return isOld && notStarred;\n});\n\nif (toDelete.length === 0) {\n  return [];\n}\n\nreturn toDelete.map(bookmark => ({\n  json: {\n    id: bookmark.id,\n    title: bookmark.title,\n    createdAt: bookmark.createdAt,\n    url: bookmark.url\n  }\n}));"
+      },
+      "name": "Filter Old Unstarred",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Any to Delete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {},
+      "name": "Nothing to Clean",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log bookmarks before deletion for audit trail\nconst items = $input.all();\nconst bookmarkList = items.map(item => {\n  return `- ${item.json.title} (${item.json.createdAt}): ${item.json.url}`;\n}).join('\\n');\n\nconst auditLog = `Deleting ${items.length} old podcasted bookmarks:\\n${bookmarkList}`;\n\nconsole.log(auditLog);\n\nreturn items;"
+      },
+      "name": "Log for Audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://karakeep:3000/api/v1/bookmarks/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "name": "Delete Bookmark",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Karakeep API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Count deleted bookmarks\nconst items = $input.all();\nconst count = items.length;\n\nif (count === 0) {\n  return [{\n    json: {\n      message: 'No bookmarks cleaned up',\n      count: 0,\n      notify: false\n    }\n  }];\n}\n\nconst message = `🧹 Cleaned up ${count} old podcast bookmark${count > 1 ? 's' : ''}`;\n\nreturn [{\n  json: {\n    message: message,\n    count: count,\n    notify: count > 10  // Only notify if more than 10 deleted\n  }\n}];"
+      },
+      "name": "Build Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.notify }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Should Notify?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {},
+      "name": "Silent Complete",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "name": "Log Notification",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2050, 500]
+    }
+  ],
+  "connections": {
+    "Schedule Daily at 3AM": {
+      "main": [
+        [
+          {
+            "node": "Calculate Cutoff Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Cutoff Date": {
+      "main": [
+        [
+          {
+            "node": "Get Podcasted Bookmarks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Podcasted Bookmarks": {
+      "main": [
+        [
+          {
+            "node": "Filter Old Unstarred",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Old Unstarred": {
+      "main": [
+        [
+          {
+            "node": "Any to Delete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any to Delete?": {
+      "main": [
+        [
+          {
+            "node": "Nothing to Clean",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log for Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log for Audit": {
+      "main": [
+        [
+          {
+            "node": "Delete Bookmark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Bookmark": {
+      "main": [
+        [
+          {
+            "node": "Build Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary": {
+      "main": [
+        [
+          {
+            "node": "Should Notify?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Notify?": {
+      "main": [
+        [
+          {
+            "node": "Silent Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-08T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,8 +1,16 @@
 # CRITICAL: SECRETS - NEVER COMMIT
+# Ignore all env files
+env/.env
+env/.env.*
+# But keep templates
+!env/.env.template
+!env/.env.*.template
+# Legacy (remove after migration)
 .env
 .env.*
 !.env.template
 !.env.*.template
+# Other secrets
 *.key
 *.pem
 secrets/
