@@ -181,38 +181,14 @@ services:
           cpus: '1.0'
 
   # KARAKEEP - Replaces Linkwarden
-  karakeep-postgres:
-    image: postgres:16-alpine
-    container_name: karakeep-postgres
-    env_file:
-      - .env
-      - .env.karakeep
-    volumes:
-      - /Volumes/docker/container_configs/karakeep/pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-
   karakeep-meilisearch:
-    image: getmeili/meilisearch:v1.5
+    image: getmeili/meilisearch:v1.13.3
     container_name: karakeep-meilisearch
     env_file:
       - .env
       - .env.karakeep
+    environment:
+      - MEILI_NO_ANALYTICS=true
     volumes:
       - /Volumes/docker/container_configs/karakeep/meili_data:/meili_data
     networks:
@@ -220,12 +196,6 @@ services:
         aliases:
           - meilisearch
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:7700/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -238,12 +208,20 @@ services:
           cpus: '1.0'
 
   karakeep-chrome:
-    image: ghcr.io/karakeep-app/karakeep-chrome:latest
+    image: gcr.io/zenika-hub/alpine-chrome:124
     container_name: karakeep-chrome
-    env_file:
-      - .env
-      - .env.karakeep
     restart: unless-stopped
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    networks:
+      default:
+        aliases:
+          - chrome
     logging:
       driver: "json-file"
       options:
@@ -256,7 +234,7 @@ services:
           cpus: '1.0'
 
   karakeep:
-    image: ghcr.io/karakeep-app/karakeep:latest
+    image: ghcr.io/karakeep-app/karakeep:release
     container_name: karakeep
     env_file:
       - .env
@@ -267,16 +245,13 @@ services:
       - /Volumes/docker/container_configs/karakeep/data:/data
     environment:
       - DATA_DIR=/data
-      - MEILI_ADDR=http://karakeep-meilisearch:7700
-      - BROWSER_WEB_URL=http://karakeep-chrome:9222
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - MEILI_ADDR=http://meilisearch:7700
+      - BROWSER_WEB_URL=http://chrome:9222
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      karakeep-postgres:
-        condition: service_healthy
-      karakeep-meilisearch:
-        condition: service_healthy
+      - karakeep-meilisearch
+      - karakeep-chrome
     restart: unless-stopped
     logging:
       driver: "json-file"

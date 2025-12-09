@@ -69,35 +69,51 @@ Docker-based homelab running on Mac Mini (Texas).
 
 ## Karakeep Setup (Replacing Linkwarden)
 
-Karakeep is a modern bookmark manager with AI-powered auto-tagging using your local Ollama instance.
+Karakeep (formerly Hoarder) is a self-hostable bookmark manager with AI-powered auto-tagging using your local Ollama instance.
 
 ### First-Time Setup
 
 1. **Access Karakeep**: http://localhost:3000
 2. **Create account** (first user becomes admin)
-3. **Configure AI tagging**:
-   - Go to Settings → AI
-   - Enable AI tagging
-   - Ollama URL is pre-configured: `http://host.docker.internal:11434`
-   - Select model (e.g., `llama2`, `mistral`, etc.)
-4. **Create tag rules** for automatic categorization:
-   - `#ai` - Keywords: artificial intelligence, machine learning, LLM, neural network
-   - `#finance` - Keywords: investing, stocks, portfolio, market, dividend
-   - `#hometech` - Keywords: smart home, homelab, docker, self-hosted
-   - Add more based on your interests
+3. **Start bookmarking**:
+   - Use the Chrome/Firefox extension
+   - Use the iOS/Android mobile app
+   - Manually add links via the web interface
+
+### AI Configuration (Optional)
+
+Configure AI-powered auto-tagging:
+1. Go to Settings → AI
+2. Enable AI inference
+3. Choose provider:
+   - **Ollama** (recommended for self-hosting):
+     - URL: `http://host.docker.internal:11434`
+     - Select model: `llama3.2`, `mistral`, etc.
+   - **OpenAI**: Add API key to `.env.karakeep`
+4. Karakeep will automatically tag and summarize bookmarks
 
 ### Mobile Access
 
-Install Karakeep iOS app and configure:
-- Server URL: Your Tailscale IP or hostname
-- API token: Generate in Settings → API
+Install the mobile app:
+- **iOS**: [Karakeep on App Store](https://apps.apple.com/us/app/karakeep-app/id6479258022)
+- **Android**: [Karakeep on Play Store](https://play.google.com/store/apps/details?id=app.hoarder.hoardermobile)
+
+Configure:
+- Server URL: Your Tailscale hostname (e.g., `http://homelab-docker.tail-scale.ts.net:3000`)
+- Login with your account credentials
+
+### Browser Extensions
+
+- **Chrome**: [Karakeep Extension](https://chromewebstore.google.com/detail/karakeep/kgcjekpmcjjogibpjebkhaanilehneje)
+- **Firefox**: [Karakeep Add-on](https://addons.mozilla.org/en-US/firefox/addon/karakeep/)
 
 ### Migrating from Linkwarden
 
 If you have existing Linkwarden bookmarks:
-1. Export bookmarks from Linkwarden (JSON or HTML)
-2. Import into Karakeep via Settings → Import
-3. Once verified, you can remove Linkwarden containers
+1. Export bookmarks from Linkwarden (Settings → Export)
+2. Import into Karakeep (Settings → Import → Linkwarden)
+3. Verify bookmarks imported successfully
+4. Remove old Linkwarden containers if no longer needed
 
 ## Volume Locations
 
