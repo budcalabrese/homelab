@@ -23,6 +23,10 @@ RUN mkdir -p /scripts
 COPY docker-monitor.sh /scripts/docker-monitor.sh
 RUN chmod +x /scripts/docker-monitor.sh
 
+# Copy initialization script to /usr/local/bin
+COPY init-scripts.sh /usr/local/bin/init-scripts.sh
+RUN chmod +x /usr/local/bin/init-scripts.sh
+
 # Set root password (will be overridden by environment variable)
 RUN echo "root:changeme" | chpasswd
 

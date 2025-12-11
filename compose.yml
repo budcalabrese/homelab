@@ -109,6 +109,7 @@ services:
       - "5678:5678"
     volumes:
       - /Volumes/docker/container_configs/n8n:/home/node/.n8n
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       # Server Configuration
       - N8N_HOST=localhost
@@ -185,7 +186,7 @@ services:
     image: getmeili/meilisearch:v1.13.3
     container_name: karakeep-meilisearch
     env_file:
-      - .env
+      - env/.env
       - env/.env.karakeep
     environment:
       - MEILI_NO_ANALYTICS=true
@@ -237,7 +238,7 @@ services:
     image: ghcr.io/karakeep-app/karakeep:release
     container_name: karakeep
     env_file:
-      - .env
+      - env/.env
       - env/.env.karakeep
     ports:
       - "3000:3000"
@@ -431,7 +432,7 @@ services:
     image: lfnovo/open_notebook:v1-latest-single
     container_name: open-notebook
     env_file:
-      - .env
+      - env/.env
       - env/.env.open-notebook
     ports:
       - "8503:8502"  # Web UI (mapped to 8503 to avoid conflict with learning-dashboard)
@@ -463,7 +464,7 @@ services:
     image: ghcr.io/matatonic/openedai-speech:latest
     container_name: openedai-speech
     env_file:
-      - .env
+      - env/.env
       - env/.env.openedai-speech
     ports:
       - "8000:8000"  # TTS API
@@ -492,7 +493,7 @@ services:
     image: tailscale/tailscale:latest
     container_name: tailscale
     env_file:
-      - .env
+      - env/.env
       - env/.env.tailscale
     hostname: homelab-docker
     environment:
@@ -524,6 +525,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /Volumes/docker/container_configs/alpine-utility:/config
+      - /Volumes/docker/container_configs/audiobookshelf/podcasts:/mnt/audiobookshelf
     ports:
       - "2223:22"
     restart: unless-stopped

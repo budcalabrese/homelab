@@ -6,6 +6,8 @@
    - SSH server (accessible on port 2223)
    - Docker CLI with read-only access to your Docker daemon
    - Monitoring script at `/scripts/docker-monitor.sh`
+   - Podcast file copy script at `/tmp/copy-podcast.sh`
+   - AudioBookshelf volume mount at `/mnt/audiobookshelf`
    - ~128MB memory footprint
 
 2. **Docker Monitoring Script** - Returns JSON with:
@@ -100,17 +102,24 @@ docker exec alpine-utility /scripts/docker-monitor.sh
 
 ### SSH into the container:
 ```bash
-ssh -p 2223 root@localhost
+ssh -p 2223 alpine@localhost
 ```
 
 ### Check specific container logs:
 ```bash
-ssh -p 2223 root@localhost "docker logs n8n --tail 50"
+ssh -p 2223 alpine@localhost "docker logs n8n --tail 50"
 ```
 
 ### List all containers:
 ```bash
-ssh -p 2223 root@localhost "docker ps -a"
+ssh -p 2223 alpine@localhost "docker ps -a"
+```
+
+### Copy podcast files (used by n8n workflow):
+```bash
+# Note: Show notes are base64-encoded and piped via stdin in the actual workflow
+# For manual testing with literal show notes:
+echo "VGVzdCBzaG93IG5vdGVz" | docker exec -i alpine-utility sh -c 'TMPF=/tmp/test-$$.b64 && cat > $TMPF && /tmp/copy-podcast.sh "Episode-Name" "/app/data/podcasts/audio.mp3" $TMPF'
 ```
 
 ## What the Monitoring Script Detects
@@ -153,9 +162,9 @@ Container health check failing
 ## Troubleshooting
 
 **n8n can't connect via SSH:**
-- Try using `host.docker.internal` instead of `alpine-utility` as hostname
-- Use port `2223` if connecting from outside Docker network
-- Use port `22` if connecting from inside Docker network (container-to-container)
+- Use `root@alpine-utility` with port `22` from n8n Execute Command nodes (not `alpine@localhost:2223`)
+- Use `-o StrictHostKeyChecking=no` to avoid SSH key verification prompts
+- Make sure SSH keys are configured (run setup script if needed)
 
 **Script shows no data:**
 ```bash
@@ -180,8 +189,9 @@ docker exec alpine-utility chmod +x /scripts/docker-monitor.sh
 ## Need Help?
 
 - Check the logs: `docker logs alpine-utility`
-- Test SSH: `ssh -p 2223 root@localhost`
-- Test script: `docker exec alpine-utility /scripts/docker-monitor.sh`
+- Test SSH: `ssh -p 2223 alpine@localhost`
+- Test monitoring script: `docker exec alpine-utility /scripts/docker-monitor.sh`
+- Test podcast copy script: `echo "VGVzdCBzaG93IG5vdGVz" | docker exec -i alpine-utility sh -c 'TMPF=/tmp/test-$$.b64 && cat > $TMPF && /tmp/copy-podcast.sh "Test" "/app/data/podcasts/test.mp3" $TMPF'`
 - n8n documentation: https://docs.n8n.io/
 
-Enjoy your automated Docker monitoring! 🎉
+Enjoy your automated Docker monitoring and podcast generation! 🎉
