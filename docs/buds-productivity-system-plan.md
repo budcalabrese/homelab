@@ -46,22 +46,35 @@ ObsidianVault/
 ├── mkdocs.yml
 ├── Dashboard.md  ← YOUR HOMEPAGE (Notion-style weekly view)
 ├── Daily Notes/
-│   └── YYYY-MM-DD.md
+│   └── YYYY-MM-DD.md (unified - work + personal + homelab)
 ├── Projects/
-│   ├── AWS-Central-Logging-Q1/
-│   │   ├── project.md (with embedded tasks)
-│   │   ├── transcript.md
-│   │   └── research.md
-│   └── [Other Projects]/
+│   ├── Work/
+│   │   ├── AWS-Central-Logging-Q1.md
+│   │   └── [Other Work Projects]/
+│   └── Personal/
+│       ├── Home-Office-Upgrade.md
+│       └── [Other Personal Projects]/
 ├── Meetings/
-│   └── YYYY-MM-DD-meeting-topic.md
-└── Learning/
-    ├── AI-Certification-2025/
-    │   ├── study-notes.md
-    │   ├── resources.md  #generate-podcast
-    │   └── key-concepts.md
-    └── [Other Topics]/
+│   ├── Work/
+│   │   └── YYYY-MM-DD-client-sync.md
+│   └── Personal/
+│       └── YYYY-MM-DD-family-planning.md
+├── Learning/
+│   ├── AI-Certification-2025/
+│   │   ├── study-notes.md
+│   │   ├── resources.md  #generate-podcast
+│   │   └── key-concepts.md
+│   └── [Other Topics]/
+└── Templates/
+    ├── Daily Note.md
+    ├── Project.md
+    └── Meeting.md
 ```
+
+**Tag Strategy:**
+- `#work` - Professional work tasks and projects
+- `#personal` - General life tasks (fitness, errands, appointments)
+- `#home` - Homelab infrastructure and house-related projects
 
 ### Docker Homelab Structure
 ```
@@ -96,24 +109,25 @@ docker-homelab/  (Gitea repo)
 # THIS WEEK
 
 ## MONDAY
-- [ ] Workout #this-week
-- [ ] 9am - Client zoom call #this-week
-- [ ] Check and update budget #home #this-week
+- [ ] Workout #personal #this-week monday
+- [ ] 9am - Client zoom call #work #this-week monday
+- [ ] Check and update budget #home #this-week monday
 
 ## TUESDAY
-- [ ] Configure AWS IAM roles #aws-logging #this-week
+- [ ] Configure AWS IAM roles #work #this-week tuesday
 
 ## WEDNESDAY
-- [ ] [Tasks auto-populated from project files] #this-week
+- [ ] [Tasks auto-populated from project files] #this-week wednesday
 
 ## THURSDAY
-- [ ] [Tasks auto-populated] #this-week
+- [ ] [Tasks auto-populated] #this-week thursday
 
 ## FRIDAY
-- [ ] [Tasks auto-populated] #this-week
+- [ ] [Tasks auto-populated] #this-week friday
 
 ## WEEKEND
-- [ ] [Personal tasks] #home
+- [ ] Register car #personal #this-week saturday
+- [ ] Update Docker containers #home #this-week sunday
 
 ---
 
@@ -124,16 +138,48 @@ WHERE contains(text, "#deadline")
 SORT due ASC
 ```
 
+## WORK TASKS
+```dataview
+TASK
+WHERE contains(text, "#work") AND !completed
+```
+
+## PERSONAL TASKS
+```dataview
+TASK
+WHERE contains(text, "#personal") AND !completed
+```
+
+## HOMELAB TASKS
+```dataview
+TASK
+WHERE contains(text, "#home") AND !completed
+```
+
+---
+
 ## WEEKLY FOCUS
-- [ ] Complete AWS logging architecture #weekly-focus
-- [ ] Gym 3x this week #weekly-focus
+- [ ] Complete AWS logging architecture #work #weekly-focus
+- [ ] Gym 3x this week #personal #weekly-focus
 
 ## SIDE QUESTS
-- [ ] Research new monitoring tools #side-quest
+- [ ] Research new monitoring tools #home #side-quest
 
-## HOME
-- [ ] Register car #home
-- [ ] Post items on eBay #home
+## ACTIVE WORK PROJECTS
+```dataview
+TABLE status as Status, file.mtime as "Last Modified"
+FROM "Projects/Work"
+WHERE contains(file.frontmatter.status, "In Progress") OR contains(file.frontmatter.status, "Planning")
+SORT file.mtime DESC
+```
+
+## ACTIVE PERSONAL PROJECTS
+```dataview
+TABLE status as Status, file.mtime as "Last Modified"
+FROM "Projects/Personal"
+WHERE contains(file.frontmatter.status, "In Progress") OR contains(file.frontmatter.status, "Planning")
+SORT file.mtime DESC
+```
 ```
 
 ### Required Obsidian Plugins
@@ -147,17 +193,21 @@ SORT due ASC
 ```markdown
 # [Project Name] - [Quarter/Year]
 
+**Type**: Work | Personal | Homelab
+**Status**: Planning | In Progress | On Hold | Completed
+**Tags**: #work | #personal | #home
+
 ## Overview
 [Brief description]
 
 ## Related Meetings
-- [[Meetings/YYYY-MM-DD-kickoff]]
+- [[Meetings/Work/]] or [[Meetings/Personal/]]
 
 ## Tasks
 - [ ] Research phase #project-name #weekly-focus
-- [ ] Design architecture #project-name #deadline 
+- [ ] Design architecture #project-name #deadline
   Due: YYYY-MM-DD
-- [ ] Implementation #project-name #this-week
+- [ ] Implementation #project-name #this-week monday
 - [ ] Testing #project-name
 
 ## Research Notes
@@ -170,6 +220,9 @@ SORT due ASC
 - Research: [Month]
 - Design: [Month]
 - Implementation: [Month]
+
+---
+**Location**: [[Projects/Work/]] or [[Projects/Personal/]]
 ```
 
 ### Daily Note Template
@@ -177,38 +230,71 @@ SORT due ASC
 # {{date:YYYY-MM-DD}}
 
 ## Work
-- 
+-
 
 ## Personal
-- 
+-
+
+## Homelab
+-
 
 ## Tomorrow
-- 
+-
 
 ## Links
-- Related projects: 
+- Related projects:
 - Related meetings:
+
+---
+**Tags**: #work #personal #home
 ```
 
 ### Meeting Note Template
 ```markdown
 # [Meeting Topic] - {{date:YYYY-MM-DD}}
 
+**Type**: Work | Personal
+**Tags**: #work | #personal
+
 ## Attendees
-- 
+-
 
 ## Key Takeaways
-- 
+-
 
 ## Action Items
-- [ ] [Task] #this-week
+- [ ] [Task] #this-week monday
 
 ## Transcript
 [Plaud Note transcript goes here via n8n]
 
 ## Related
-- Project: [[Projects/]]
+- Project: [[Projects/Work/]] or [[Projects/Personal/]]
+
+---
+**Location**: [[Meetings/Work/]] or [[Meetings/Personal/]]
 ```
+
+---
+
+## Tag System Explained
+
+The system uses **three primary tags** to categorize all tasks and content:
+
+1. **#work** - Professional work tasks and projects
+   - Examples: AWS projects, client meetings, certifications, work deadlines
+   - Location: `Projects/Work/`, `Meetings/Work/`
+
+2. **#personal** - General life tasks (fitness, errands, appointments)
+   - Examples: Gym workouts, doctor appointments, car maintenance, errands
+   - Location: `Projects/Personal/`, `Meetings/Personal/`
+
+3. **#home** - Homelab infrastructure and house-related projects
+   - Examples: Docker container updates, network configuration, home improvements, monitoring setup
+   - Location: Can be in `Projects/Personal/` or mixed throughout
+   - **Why separate from #personal?** Your homelab is substantial technical work - it's at home but different from personal errands
+
+**Key Principle:** Daily Notes stay unified (work + personal + homelab mixed), but Projects and Meetings are organized into Work/Personal subfolders. Tags allow Dashboard queries to pull tasks by category regardless of location.
 
 ---
 
@@ -245,8 +331,8 @@ SORT due ASC
 # 2024-12-03
 
 ## Work
-- Updated [[Projects/AWS-Central-Logging-Q1]] architecture design
-- Call with [[Meetings/2024-12-03-John-Discussion]] regarding timeline concerns
+- Updated [[Projects/Work/AWS-Central-Logging-Q1]] architecture design
+- Call with [[Meetings/Work/2024-12-03-John-Discussion]] regarding timeline concerns
 - Completed: ~~Configure IAM roles for dev accounts~~ ✓
 - Researched best practices for CloudWatch integration
 
@@ -254,13 +340,21 @@ SORT due ASC
 - Gym (push day) ✓
 - Checked budget in [[Budget Dashboard]] - on track for month
 
+## Homelab
+- Updated Docker containers on Mac Mini
+- Fixed n8n workflow for podcast generation
+- Researched new monitoring tools
+
 ## Blockers
 - Need Security team approval for prod access
 
 ## Tomorrow
-- Finish remaining 4 IAM role configurations
-- Follow up with Security team
-- Review Q1 timeline with manager
+- Finish remaining 4 IAM role configurations #work
+- Follow up with Security team #work
+- Review Q1 timeline with manager #work
+
+---
+**Tags**: #work #personal #home
 ```
 
 ---
@@ -278,25 +372,29 @@ SORT due ASC
 - Git auto-commits to GitHub
 
 **Step 2: Create Project Structure**
-Create new project: `Projects/AWS-Central-Logging-Q1/project.md`
+Create new project: `Projects/Work/AWS-Central-Logging-Q1.md`
 
 ```markdown
 # AWS Central Logging - Q1 2025 Project
+
+**Type**: Work
+**Status**: In Progress
+**Tags**: #work
 
 ## Overview
 Implement centralized logging using AWS unified management across 12 accounts
 
 ## Related Meetings
-- [[Meetings/2024-12-02-AWS-Logging-Kickoff]]
+- [[Meetings/Work/2024-12-02-AWS-Logging-Kickoff]]
 
 ## Tasks
-- [ ] Research AWS unified management capabilities #aws-logging #weekly-focus
-- [ ] Set up central logging account #aws-logging #deadline 
+- [ ] Research AWS unified management capabilities #work #aws-logging #weekly-focus
+- [ ] Set up central logging account #work #aws-logging #deadline
   Due: 2024-12-15
-- [ ] Configure IAM roles (12 accounts) #aws-logging #this-week
-- [ ] Set up S3 buckets with lifecycle policies #aws-logging
-- [ ] Test in dev environment #aws-logging
-- [ ] Deploy to production accounts #aws-logging #deadline
+- [ ] Configure IAM roles (12 accounts) #work #aws-logging #this-week monday
+- [ ] Set up S3 buckets with lifecycle policies #work #aws-logging
+- [ ] Test in dev environment #work #aws-logging
+- [ ] Deploy to production accounts #work #aws-logging #deadline
   Due: 2025-02-15
 
 ## Research Notes
@@ -312,6 +410,9 @@ Implement centralized logging using AWS unified management across 12 accounts
 - Research: Dec 2024
 - Design: Jan 2025
 - Implementation: Feb 2025
+
+---
+**Location**: [[Projects/Work/]]
 ```
 
 **Step 3: Research with AnythingLLM**
@@ -332,8 +433,8 @@ Implement centralized logging using AWS unified management across 12 accounts
 **Step 5: Track Daily Progress**
 - Work on task (e.g., configure IAM roles)
 - Update daily journal: "Configured IAM roles for 8/12 accounts today"
-- Check off task when complete in project.md
-- Link daily journal to project: `[[Projects/AWS-Central-Logging-Q1]]`
+- Check off task when complete in project file
+- Link daily journal to project: `[[Projects/Work/AWS-Central-Logging-Q1]]`
 - Dashboard updates automatically
 
 **Step 6: Performance Review Time**
@@ -715,12 +816,13 @@ Home:
 3. **Create Obsidian Meeting Note**
    - Use meeting template
    - Filename: `YYYY-MM-DD-{meeting-topic}.md`
-   - Location: `Meetings/`
+   - Location: `Meetings/Work/` or `Meetings/Personal/` (based on meeting type)
    - Content: Formatted transcript + metadata
+   - Add appropriate tag: #work or #personal
 
 4. **Git Commit**
    - `cd ~/ObsidianVault`
-   - `git add Meetings/YYYY-MM-DD-*.md`
+   - `git add Meetings/Work/YYYY-MM-DD-*.md` or `Meetings/Personal/YYYY-MM-DD-*.md`
    - `git commit -m "Add meeting transcript: {topic}"`
    - `git pushall`
 
@@ -1312,9 +1414,12 @@ Savings: 23.5 hours/day of freed resources
   - [ ] Templater
 - [ ] Create folder structure:
   - [ ] `Daily Notes/`
-  - [ ] `Projects/`
-  - [ ] `Meetings/`
+  - [ ] `Projects/Work/`
+  - [ ] `Projects/Personal/`
+  - [ ] `Meetings/Work/`
+  - [ ] `Meetings/Personal/`
   - [ ] `Learning/`
+  - [ ] `Templates/`
 - [ ] Create `Dashboard.md` homepage
 - [ ] Test Dataview queries on Dashboard
 - [ ] Create daily note template
