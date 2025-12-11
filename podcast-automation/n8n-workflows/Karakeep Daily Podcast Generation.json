@@ -1,0 +1,728 @@
+{
+  "name": "Karakeep Daily Podcast Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 14 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Daily at 2PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        20352,
+        2928
+      ],
+      "id": "12c0b39b-fe7d-4581-8739-aa11094defcf"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Set Date Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        20544,
+        2928
+      ],
+      "id": "fbfa0894-fb4b-4b8d-9a15-0d2cd5cf983f"
+    },
+    {
+      "parameters": {
+        "url": "http://192.168.0.9:3000/api/v1/bookmarks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "100"
+            },
+            {
+              "name": "includeContent",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Recent Bookmarks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        20752,
+        2928
+      ],
+      "id": "bfb1155d-72dd-4b8b-8580-e713b3c402cf",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "X2FyQ0AMsq7uEHhG",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter bookmarks from last 24 hours and group by primary tag\nconst bookmarks = $input.first().json.bookmarks || [];\nconst now = new Date();\n\n// Calculate 24 hours ago (simpler approach) - TEMP: Using 7 days for testing\nconst timestamp24HoursAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));\n\nconsole.log('Current time:', now.toISOString());\nconsole.log('24 hours ago threshold:', timestamp24HoursAgo.toISOString());\nconsole.log('Total bookmarks received:', bookmarks.length);\n\n// Filter bookmarks from last 24 hours AND exclude already podcasted bookmarks\nconst recentBookmarks = bookmarks.filter(bookmark => {\n  // Try different timestamp fields that Karakeep might use\n  const createdAtField = bookmark.createdAt || bookmark.created_at || bookmark.createdTime;\n  const created = new Date(createdAtField);\n  \n  // Check if bookmark has been podcasted already\n  const isPodcasted = bookmark.tags && bookmark.tags.some(tag => \n    tag.name === 'podcasted' || tag.name.startsWith('podcasted-')\n  );\n  \n  const isRecent = created > timestamp24HoursAgo;\n  \n  console.log(`Bookmark \"${bookmark.title}\" created at:`, created.toISOString(), 'Recent?', isRecent, 'Already podcasted?', isPodcasted);\n  \n  return isRecent && !isPodcasted;\n});\n\nconsole.log('Recent bookmarks found (excluding already podcasted):', recentBookmarks.length);\n\nif (recentBookmarks.length === 0) {\n  return [];\n}\n\n// Group by primary tag\nconst tagGroups = {};\nrecentBookmarks.forEach(bookmark => {\n  if (bookmark.tags && bookmark.tags.length > 0) {\n    const primaryTag = bookmark.tags[0].name;\n    if (!tagGroups[primaryTag]) {\n      tagGroups[primaryTag] = [];\n    }\n    tagGroups[primaryTag].push(bookmark);\n  }\n});\n\nconsole.log('Tag groups:', Object.keys(tagGroups));\n\n// Filter groups with 2+ bookmarks and create output\nconst result = [];\nfor (const [tag, items] of Object.entries(tagGroups)) {\n  console.log(`Tag \"${tag}\" has ${items.length} bookmarks`);\n  if (items.length >= 2) {\n    result.push({\n      tag: tag,\n      bookmarkCount: items.length,\n      bookmarks: items,\n      currentDate: $input.first().json.currentDate\n    });\n  }\n}\n\nconsole.log('Final tag groups with 2+ bookmarks:', result.length);\n\nreturn result.map(item => ({ json: item }));"
+      },
+      "name": "Filter and Group by Tag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20944,
+        2928
+      ],
+      "id": "d38a44b6-3577-403e-adf6-090585a3794b"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "name": "Any Tag Groups?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        21152,
+        2928
+      ],
+      "id": "1cbc0c05-7134-4458-b9df-f10df399f827"
+    },
+    {
+      "parameters": {},
+      "name": "No Podcasts Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        21344,
+        2816
+      ],
+      "id": "1031aa71-4997-4696-95a1-f210afd2db09"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Process Each Tag Group",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        21344,
+        3024
+      ],
+      "id": "80eeb6e7-5773-4a5f-8e91-c1b69c5728a2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build markdown content from bookmarks\nconst tag = $input.item.json.tag;\nconst bookmarks = $input.item.json.bookmarks;\n\n// Format date as MM-DD-YYYY (consistent with tagging format)\nconst dateStr = $input.item.json.currentDate || new Date().toISOString().split('T')[0];\nconst dateObj = new Date(dateStr);\nconst month = String(dateObj.getMonth() + 1).padStart(2, '0');\nconst day = String(dateObj.getDate()).padStart(2, '0');\nconst year = dateObj.getFullYear();\nconst currentDate = `${month}-${day}-${year}`;\n\nlet markdown = `# Daily Digest - ${tag} - ${currentDate}\\n\\n`;\n\nbookmarks.forEach((bookmark, index) => {\n  markdown += `## Article ${index + 1}: ${bookmark.title || 'Untitled'}\\n`;\n  markdown += `Source: ${bookmark.url || 'No URL'}\\n\\n`;\n  \n  if (bookmark.content) {\n    // Check if content is a string, if not convert it\n    let contentText = typeof bookmark.content === 'string' \n      ? bookmark.content \n      : JSON.stringify(bookmark.content);\n    \n    // Limit content to first 500 characters to avoid huge podcasts\n    const content = contentText.substring(0, 500);\n    markdown += `${content}...\\n\\n`;\n  } else if (bookmark.description) {\n    markdown += `${bookmark.description}\\n\\n`;\n  }\n  \n  markdown += `---\\n\\n`;\n});\n\nreturn {\n  json: {\n    tag: tag,\n    currentDate: currentDate,\n    episodeName: `Daily Digest - ${tag} - ${currentDate}`,\n    markdownContent: markdown,\n    bookmarks: bookmarks,\n    bookmarkIds: bookmarks.map(b => b.id)\n  }\n};"
+      },
+      "name": "Build Markdown Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        21552,
+        3024
+      ],
+      "id": "43cb638a-dab3-4ff5-9ee0-2db8d122a93f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.0.9:5055/api/podcasts/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "episode_profile",
+              "value": "tech_discussion_qwen"
+            },
+            {
+              "name": "speaker_profile",
+              "value": "tech_experts_local"
+            },
+            {
+              "name": "episode_name",
+              "value": "={{ $json.episodeName }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.markdownContent }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Podcast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        21744,
+        3024
+      ],
+      "id": "8819e7c8-7227-48b3-ac40-dbe37c630280"
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "minutes"
+      },
+      "name": "Wait for Generation",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        21952,
+        3024
+      ],
+      "id": "29691553-1f69-462d-a755-8dc55d584267",
+      "webhookId": "5a0645ae-0035-4aab-b04a-42804e769ed3"
+    },
+    {
+      "parameters": {
+        "url": "=http://192.168.0.9:5055/api/podcasts/jobs/{{ $json.job_id }}",
+        "options": {}
+      },
+      "name": "Check Episode Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        22160,
+        3024
+      ],
+      "id": "b1f7c4fa-c8f5-4099-b9b9-71d7c96998c9"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      },
+      "name": "Wait and Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        22528,
+        3136
+      ],
+      "id": "59aa9352-9f7b-4ac9-83e9-57b89167ff48",
+      "webhookId": "473f5961-4b7d-4e98-a2d1-def861336794"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass episode metadata forward for Build Summary\nconst markdownNode = $('Build Markdown Content');\nif (markdownNode && markdownNode.first()) {\n  const data = markdownNode.first().json;\n  return [{\n    json: {\n      episodeName: data.episodeName,\n      tag: data.tag,\n      bookmarkCount: data.bookmarkCount || (data.bookmarks ? data.bookmarks.length : 0)\n    }\n  }];\n}\nreturn [{ json: {} }];"
+      },
+      "name": "Continue to Next Tag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        23296,
+        3168
+      ],
+      "id": "6d87d795-9d73-4acc-8dbe-a1cacd7c629c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build summary of all generated podcasts\nconst items = $input.all();\nconst podcasts = [];\n\nitems.forEach(item => {\n  if (item.json.episodeName && item.json.bookmarkCount) {\n    podcasts.push({\n      topic: item.json.tag,\n      articleCount: item.json.bookmarkCount,\n      episodeName: item.json.episodeName\n    });\n  }\n});\n\nif (podcasts.length === 0) {\n  return [{ json: { message: 'No podcasts generated today' } }];\n}\n\nconst summary = podcasts.map(p => `${p.topic} (${p.articleCount} articles)`).join(', ');\nconst message = `📻 ${podcasts.length} podcast${podcasts.length > 1 ? 's' : ''} ready: ${summary}`;\n\nreturn [{\n  json: {\n    message: message,\n    podcasts: podcasts,\n    count: podcasts.length\n  }\n}];"
+      },
+      "name": "Build Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        21616,
+        2832
+      ],
+      "id": "d505f085-043b-42bf-b0b4-93588efe986f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "99b58430-7d4a-49ca-acf4-39bbe6d8e46b",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        22320,
+        3024
+      ],
+      "id": "20c0df05-4db1-4aff-ba2b-daefdea49d5b",
+      "name": "Is Completed?"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        22528,
+        2960
+      ],
+      "id": "546abb98-1f24-4c61-8490-91212fd2ff2f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get episode details from Check Episode Status response\nconst statusData = $input.first().json;\n\nconsole.log('Episode status data:', JSON.stringify(statusData, null, 2));\n\n// The status check already returns the full episode data\n// Extract what we need: episode_id and result.audio_file_path\nconst episodeId = statusData.episode_id || statusData.result?.episode_id;\nconst audioFile = statusData.result?.audio_file_path || statusData.audio_file;\n\nif (!audioFile) {\n  console.error('ERROR: No audio file found in episode data');\n  console.error('Available fields:', Object.keys(statusData));\n  if (statusData.result) {\n    console.error('Result fields:', Object.keys(statusData.result));\n  }\n}\n\nconsole.log('Episode ID:', episodeId);\nconsole.log('Audio file path:', audioFile);\n\nreturn [{\n  json: {\n    episode_id: episodeId,\n    audio_file: audioFile,\n    status: statusData.status\n  }\n}];"
+      },
+      "name": "Get Episode Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        22528,
+        2816
+      ],
+      "id": "7df58d0d-e0a3-43b0-9258-0bd29d76c418"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create show notes content from bookmarks\nconst markdownNode = $('Build Markdown Content');\nif (!markdownNode || !markdownNode.first()) {\n  console.log('ERROR: Could not find Build Markdown Content node');\n  return [{ json: { showNotes: 'Error: Could not generate show notes' } }];\n}\n\nconst markdownData = markdownNode.first().json;\nconst episodeName = markdownData.episodeName || 'Daily Digest';\nconst bookmarks = markdownData.bookmarks || [];\n\nlet showNotes = `${episodeName}\\n\\nArticles covered:\\n`;\n\nbookmarks.forEach((bookmark, index) => {\n  showNotes += `\\n• ${bookmark.title || 'Untitled'}\\n`;\n  showNotes += `  ${bookmark.url || 'No URL'}\\n`;\n});\n\nshowNotes += `\\n---\\nAuto-generated from Karakeep bookmarks\\n`;\nshowNotes += `Total articles: ${bookmarks.length} | Generated: ${markdownData.currentDate}\\n`;\n\nconsole.log('Show notes created:', showNotes.substring(0, 200));\n\nreturn [{\n  json: {\n    showNotes: showNotes,\n    episodeName: episodeName,\n    audioFile: $input.first().json.audio_file\n  }\n}];"
+      },
+      "name": "Create Show Notes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        22736,
+        2816
+      ],
+      "id": "eb65b6f8-a85c-47c1-881e-d02c3529df9c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for copying files\nconst episodeName = $input.first().json.episodeName;\nconst audioFile = $input.first().json.audioFile;\nconst showNotes = $input.first().json.showNotes;\n\nconsole.log('Episode name:', episodeName);\nconsole.log('Audio file path in container:', audioFile);\n\n// Base64 encode show notes to safely pass via SSH\n// This handles newlines, special characters, and quotes\nconst showNotesB64 = Buffer.from(showNotes).toString('base64');\n\nconsole.log('Show notes encoded (first 50 chars):', showNotesB64.substring(0, 50));\n\nreturn [{\n  json: {\n    episodeName: episodeName,\n    audioFile: audioFile,\n    showNotesB64: showNotesB64,\n    targetDir: '/Volumes/docker/container_configs/audiobookshelf/podcasts/Daily-Digests'\n  }\n}];"
+      },
+      "name": "Prepare Copy Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        22912,
+        2816
+      ],
+      "id": "e068aa8e-9730-4343-bb92-758873c9373a"
+    },
+    {
+      "parameters": {
+        "command": "=echo '{{ $json.showNotesB64 }}' | ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility 'TMPF=/tmp/shownotes-$$.b64 && cat > $TMPF && /tmp/copy-podcast.sh \"{{ $json.episodeName }}\" \"{{ $json.audioFile }}\" $TMPF'"
+      },
+      "name": "Copy Files via Alpine Utility",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        23072,
+        2816
+      ],
+      "id": "1b068dbd-fa48-47e7-8f6a-2bdd1526cc81"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.0.9:13378/api/libraries/5194d2f8-5178-41f2-a0fd-43fea1c36604/scan",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {}
+      },
+      "name": "Scan AudioBookshelf Library",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        23248,
+        2816
+      ],
+      "id": "81050ae1-8ade-43b0-8fef-0d8f68232af7",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pjUma9Bm5uZDUzUy",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fetch bookmark data from the Build Markdown Content node\nconst markdownNode = $('Build Markdown Content');\nif (!markdownNode || !markdownNode.first()) {\n  console.log('ERROR: Could not find Build Markdown Content node');\n  return [];\n}\n\nconst markdownData = markdownNode.first().json;\nconst bookmarks = markdownData.bookmarks || [];\n\n// Format date as MM-DD-YYYY\nconst dateStr = markdownData.currentDate || new Date().toISOString().split('T')[0];\nconst dateObj = new Date(dateStr);\nconst month = String(dateObj.getMonth() + 1).padStart(2, '0');\nconst day = String(dateObj.getDate()).padStart(2, '0');\nconst year = dateObj.getFullYear();\nconst currentDate = `${month}-${day}-${year}`;\n\nconsole.log('Fetched from Build Markdown Content:');\nconsole.log('- Bookmarks to tag:', bookmarks.length);\nconsole.log('- Current date:', currentDate);\n\nif (!bookmarks || bookmarks.length === 0) {\n  console.log('ERROR: No bookmarks found in markdown data');\n  return [];\n}\n\nreturn bookmarks.map((bookmark, idx) => {\n  console.log(`Bookmark ${idx + 1}: ID=${bookmark.id}, Title=${bookmark.title}`);\n  return {\n    json: {\n      id: bookmark.id,\n      title: bookmark.title,\n      currentDate: currentDate\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        23440,
+        2928
+      ],
+      "id": "6fa90280-e775-407a-8f81-697da601f368",
+      "name": "Format Single Bookmark"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://192.168.0.9:3000/api/v1/bookmarks/{{ $json.id }}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tags\": [\n    {\"tagName\": \"podcasted\"},\n    {\"tagName\": \"podcasted-{{ $json.currentDate }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        23648,
+        2928
+      ],
+      "id": "62ef309d-1f44-49eb-a102-156fe689da96",
+      "name": "Tag Bookmarks as Podcasted",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "X2FyQ0AMsq7uEHhG",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://192.168.0.9:3000/api/v1/bookmarks/{{ $('Format Single Bookmark').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"archived\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        23856,
+        2928
+      ],
+      "id": "7a2b8c9d-1e2f-3456-789a-bcdef0123456",
+      "name": "Archive Bookmark",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "X2FyQ0AMsq7uEHhG",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Daily at 2PM": {
+      "main": [
+        [
+          {
+            "node": "Set Date Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Date Variables": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Bookmarks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Bookmarks": {
+      "main": [
+        [
+          {
+            "node": "Filter and Group by Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter and Group by Tag": {
+      "main": [
+        [
+          {
+            "node": "Any Tag Groups?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Tag Groups?": {
+      "main": [
+        [
+          {
+            "node": "No Podcasts Needed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Each Tag Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Tag Group": {
+      "main": [
+        [
+          {
+            "node": "Build Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Markdown Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Markdown Content": {
+      "main": [
+        [
+          {
+            "node": "Generate Podcast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Podcast": {
+      "main": [
+        [
+          {
+            "node": "Wait for Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Generation": {
+      "main": [
+        [
+          {
+            "node": "Check Episode Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Episode Status": {
+      "main": [
+        [
+          {
+            "node": "Is Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait and Retry": {
+      "main": [
+        [
+          {
+            "node": "Check Episode Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue to Next Tag": {
+      "main": [
+        [
+          {
+            "node": "Process Each Tag Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Completed?": {
+      "main": [
+        [
+          {
+            "node": "Get Episode Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait and Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Episode Details": {
+      "main": [
+        [
+          {
+            "node": "Create Show Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Show Notes": {
+      "main": [
+        [
+          {
+            "node": "Prepare Copy Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Copy Data": {
+      "main": [
+        [
+          {
+            "node": "Copy Files via Alpine Utility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Files via Alpine Utility": {
+      "main": [
+        [
+          {
+            "node": "Scan AudioBookshelf Library",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan AudioBookshelf Library": {
+      "main": [
+        [
+          {
+            "node": "Format Single Bookmark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Continue to Next Tag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tag Bookmarks as Podcasted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Single Bookmark": {
+      "main": [
+        [
+          {
+            "node": "Tag Bookmarks as Podcasted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag Bookmarks as Podcasted": {
+      "main": [
+        [
+          {
+            "node": "Archive Bookmark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archive Bookmark": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ec117823-39bb-4204-94b4-0476a38ee21c",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "id": "x1gJIjp07WzVnWSZ",
+  "tags": []
+}

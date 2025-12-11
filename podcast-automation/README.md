@@ -155,7 +155,7 @@ Repeat for cleanup workflow:
 2. Look for episode: "Daily Digest - test - [today's date]"
 3. Click on episode → should see audio player
 4. Play audio to verify it works!
-5. Go back to Karakeep → check bookmarks have `#podcasted` tag
+5. Go back to Karakeep → check bookmarks have `#podcasted` tag and are archived
 
 ## Step 6: Enable Automation (1 minute)
 
@@ -181,14 +181,14 @@ Your automation is now live:
 
 ### Afternoon (2:00 PM)
 3. n8n automatically generates podcasts by topic
-4. Bookmarks tagged as `#podcasted`
+4. Bookmarks tagged as `#podcasted` and archived
 
 ### Evening
 5. Listen to podcasts in AudioBookShelf (or Open Notebook web UI)
 6. **Star bookmarks you want to keep permanently**
 
 ### Night (3:00 AM)
-7. Old unstarred podcasted bookmarks automatically deleted
+7. Old archived bookmarks (>7 days, unstarred) automatically deleted
 
 ## Next Steps
 

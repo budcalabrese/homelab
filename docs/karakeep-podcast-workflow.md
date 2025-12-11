@@ -38,9 +38,12 @@ iPhone → Karakeep (auto-tag) → n8n (2pm trigger) → Open Notebook → Audio
 3. For each tag group with 2+ articles:
    - Fetches full article content and URLs
    - Creates markdown file for Open Notebook
-   - Generates conversational podcast (10-15 min)
-   - Creates show notes with article links
-   - Saves to AudioBookShelf
+   - Submits podcast generation request to Open Notebook API
+   - Polls for completion status
+   - Extracts audio file path from completed episode
+   - Creates show notes with article titles and URLs
+   - Copies MP3 and show notes to AudioBookShelf via alpine-utility bastion host
+   - Triggers AudioBookShelf library scan
    - Tags bookmarks as `#podcasted` and `#podcasted-YYYY-MM-DD`
 4. Sends notification: "X podcasts ready: AI, Finance, Home Tech"
 
@@ -51,10 +54,11 @@ iPhone → Karakeep (auto-tag) → n8n (2pm trigger) → Open Notebook → Audio
 - Star interesting bookmarks in Karakeep for permanent keeping
 
 ### Phase 4: Automated Cleanup (Daily at 3:00 AM)
-- Queries bookmarks tagged `#podcasted`, older than 7 days, NOT starred
-- Deletes old bookmarks automatically
+- Queries archived bookmarks older than 7 days that are NOT starred
+- Deletes old archived bookmarks automatically
 - Sends notification if >10 cleaned
 - Keeps Karakeep database lean
+- Note: Bookmarks are automatically archived after podcast generation to keep main view clean
 
 ---
 
@@ -518,9 +522,282 @@ docker exec -it open-notebook ollama list
 
 ---
 
+## AudioBookshelf Integration Implementation
+
+### Overview
+
+The workflow integrates with AudioBookshelf by copying generated podcast files from the Open Notebook container to the AudioBookshelf directory and triggering a library scan. This is accomplished using the alpine-utility container as a bastion host.
+
+### Architecture
+
+```
+n8n → SSH to alpine-utility → docker cp from open-notebook → AudioBookshelf directory
+```
+
+**Why alpine-utility?**
+- n8n container doesn't have Docker CLI or socket access
+- alpine-utility has Docker socket access for health monitoring
+- Reuses existing infrastructure instead of adding Docker socket to n8n
+- Provides secure separation of concerns
+
+### Implementation Details
+
+#### 1. Volume Configuration
+
+The alpine-utility container has access to the AudioBookshelf directory:
+
+```yaml
+# compose.yml - alpine-utility service
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock:ro
+  - /Volumes/docker/container_configs/alpine-utility:/config
+  - /Volumes/docker/container_configs/audiobookshelf/podcasts:/mnt/audiobookshelf
+```
+
+This mounts the AudioBookshelf podcasts directory at `/mnt/audiobookshelf` inside alpine-utility.
+
+#### 2. File Copy Script
+
+A script at `/tmp/copy-podcast.sh` inside alpine-utility handles the file operations:
+
+```bash
+#!/bin/sh
+# Copy podcast files from Open Notebook to AudioBookshelf
+
+EPISODE_NAME="$1"
+AUDIO_FILE="$2"
+SHOW_NOTES="$3"
+
+TARGET_DIR="/mnt/audiobookshelf/Daily-Digests"
+
+echo "=== Podcast File Copy Script ==="
+echo "Episode name: $EPISODE_NAME"
+echo "Audio file: $AUDIO_FILE"
+echo "Target dir: $TARGET_DIR"
+
+# Copy MP3 from Open Notebook container
+echo "Copying MP3 from container..."
+docker cp "open-notebook:$AUDIO_FILE" "$TARGET_DIR/$EPISODE_NAME.mp3" 2>&1
+if [ $? -eq 0 ]; then
+  echo "✓ Audio file copied successfully"
+else
+  echo "✗ Failed to copy audio file"
+  exit 1
+fi
+
+# Create show notes file
+echo "Creating show notes..."
+printf "%s" "$SHOW_NOTES" > "$TARGET_DIR/$EPISODE_NAME.txt"
+if [ $? -eq 0 ]; then
+  echo "✓ Show notes created"
+else
+  echo "✗ Failed to create show notes"
+  exit 1
+fi
+
+echo "=== SUCCESS: All files copied ==="
+```
+
+**Script location**: Created via `docker exec` and persists in `/tmp/` (recreated on container restart if needed)
+
+#### 3. n8n Workflow Nodes
+
+After the "Is Completed?" node that checks podcast generation status, the workflow includes:
+
+**A. Get Episode Details** (Code node)
+- Extracts `episode_id` and `audio_file` path from the completion status response
+- No additional API call needed - data already in previous node's response
+
+**B. Create Show Notes** (Code node)
+- References the "Build Markdown Content" node to get bookmark data
+- Formats show notes with episode name, article titles, and URLs
+- Format:
+  ```
+  Daily Digest - AI - 12-08-2024
+
+  Articles covered:
+
+  • Article Title
+    https://example.com/article
+
+  • Another Article
+    https://example.com/another
+
+  ---
+  Auto-generated from Karakeep bookmarks
+  Total articles: 2 | Generated: 12-08-2024
+  ```
+
+**C. Prepare Copy Data** (Code node)
+- Packages episode name, audio file path, and show notes for SSH command
+- **Base64-encodes show notes** to handle special characters (bullets •, newlines, URLs)
+- Validates data is present
+- Returns: `episodeName`, `audioFile`, `showNotesB64`
+
+**D. Copy Files via Alpine Utility** (Execute Command node)
+- Uses SSH key authentication to execute the copy script on alpine-utility
+- **Uses stdin piping** to safely pass base64-encoded show notes
+- Command:
+  ```bash
+  echo '{{ $json.showNotesB64 }}' | ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility \
+    'TMPF=/tmp/shownotes-$$.b64 && cat > $TMPF && /tmp/copy-podcast.sh "{{ $json.episodeName }}" "{{ $json.audioFile }}" $TMPF'
+  ```
+- **How it works:**
+  1. Base64-encoded show notes are echoed
+  2. Piped via SSH stdin to alpine-utility
+  3. Written to temp file with unique PID-based name (`$$` = process ID)
+  4. Temp file path passed to copy script
+  5. Script decodes base64, writes show notes, cleans up temp file
+- Port 22: Internal container port (not the host-exposed 2223)
+- Username: `root` (SSH key authentication)
+- Container name: `alpine-utility` (Docker network DNS)
+- StrictHostKeyChecking=no: Avoids SSH key prompts in automation
+- SSH keys: Generated in n8n container at `/home/node/.ssh/id_ed25519`, public key added to alpine-utility's `/root/.ssh/authorized_keys`
+
+**E. Scan AudioBookshelf Library** (HTTP Request node)
+- Triggers library scan so new podcasts appear immediately
+- Endpoint: `POST http://192.168.0.9:13378/api/libraries/5194d2f8-5178-41f2-a0fd-43fea1c36604/scan`
+- Library ID: `5194d2f8-5178-41f2-a0fd-43fea1c36604` (Podcats library)
+- Authentication: HTTP Header Auth with Bearer token
+- Credential name: "AudioBookshelf API"
+
+### File Naming Convention
+
+- **MP3 files**: `Daily Digest - {Tag} - {MM-DD-YYYY}.mp3`
+  - Example: `Daily Digest - AI - 12-08-2024.mp3`
+- **Show notes**: `Daily Digest - {Tag} - {MM-DD-YYYY}.txt`
+  - Example: `Daily Digest - AI - 12-08-2024.txt`
+
+### Directory Structure
+
+```
+/Volumes/docker/container_configs/audiobookshelf/podcasts/
+└── Daily-Digests/
+    ├── Daily Digest - AI - 12-08-2024.mp3
+    ├── Daily Digest - AI - 12-08-2024.txt
+    ├── Daily Digest - Finance - 12-08-2024.mp3
+    ├── Daily Digest - Finance - 12-08-2024.txt
+    └── ...
+```
+
+### Error Handling
+
+**Script-level errors**:
+- Docker cp failures (container not found, file not found)
+- File write failures (permissions, disk space)
+- Script exits with non-zero status, n8n workflow catches error
+
+**Workflow-level handling**:
+- If copy fails, workflow logs error but continues with other episodes
+- Failed episodes retain `#podcasted` tag but won't appear in AudioBookShelf
+- Manual intervention required for failed copies
+
+### Testing the Integration
+
+**Test the copy script manually**:
+```bash
+# Verify script exists
+docker exec alpine-utility ls -l /tmp/copy-podcast.sh
+
+# Test with dummy data
+docker exec alpine-utility /tmp/copy-podcast.sh \
+  "Test Episode" \
+  "/app/data/podcasts/test.mp3" \
+  "Test show notes content"
+
+# Verify AudioBookshelf mount
+docker exec alpine-utility ls -l /mnt/audiobookshelf/Daily-Digests/
+```
+
+**Test from n8n**:
+```bash
+# Test SSH key authentication from n8n container
+docker exec n8n ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility echo "SSH key auth works!"
+
+# Test the full copy command with base64-encoded show notes
+docker exec n8n sh -c "echo 'VGVzdCBzaG93IG5vdGVz' | ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility 'TMPF=/tmp/shownotes-\$\$.b64 && cat > \$TMPF && /tmp/copy-podcast.sh \"Test-Episode\" \"/app/data/podcasts/test.mp3\" \$TMPF'"
+```
+
+### Security Considerations
+
+- **SSH access**: alpine-utility is only accessible via localhost:2223 from host, internal port 22 on Docker network
+- **Docker socket**: Mounted read-only (`:ro`) but `docker cp` still works for reading files from containers
+- **File permissions**: alpine-utility SSH runs as root user for docker access
+- **Network isolation**: All services on same Docker network, no external exposure
+- **Authentication**:
+  - n8n uses SSH key authentication (ed25519 key pair)
+  - Public key stored in alpine-utility's `/root/.ssh/authorized_keys`
+  - Private key persists in n8n's `/home/node/.ssh/` directory (survives container rebuilds)
+  - Password authentication still available from host for manual access via port 2223
+
+### Troubleshooting
+
+**Issue**: SSH connection refused
+- **Check**: `docker ps | grep alpine-utility` - is container running?
+- **Check**: `docker logs alpine-utility` - any SSH errors?
+- **Test**: `ssh -p 2223 alpine@localhost` from host machine
+
+**Issue**: Docker cp fails with "no such container"
+- **Check**: `docker exec alpine-utility docker ps` - can alpine-utility see open-notebook?
+- **Verify**: open-notebook container name is exactly `open-notebook`
+
+**Issue**: Files not appearing in AudioBookShelf
+- **Check**: `docker exec alpine-utility ls /mnt/audiobookshelf/Daily-Digests/`
+- **Verify**: AudioBookShelf library scan completed
+- **Check**: AudioBookShelf logs: `docker logs audiobookshelf`
+
+**Issue**: Show notes are empty or malformed
+- **Check**: "Create Show Notes" node output in n8n
+- **Verify**: Bookmark data from "Build Markdown Content" is available
+- **Check**: "Prepare Copy Data" node - verify base64 encoding is working
+- **Test**: Run workflow with debug mode to inspect node outputs
+- **Common cause**: Special characters in show notes breaking shell escaping (fixed by base64 encoding)
+
+### Maintenance
+
+**After container restarts**:
+
+1. **alpine-utility restart**:
+   - Recreate `/tmp/copy-podcast.sh` (stored in /tmp, doesn't persist)
+   - Re-add n8n's public SSH key to `/root/.ssh/authorized_keys`
+
+2. **n8n restart**:
+   - SSH keys persist in volume (`/home/node/.ssh/` is part of n8n's data volume)
+   - No action needed - keys survive rebuilds
+
+**One-time SSH key setup** (if keys are lost):
+```bash
+# Generate SSH key in n8n container
+docker exec n8n sh -c 'mkdir -p ~/.ssh && ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "n8n-to-alpine-utility"'
+
+# Get the public key
+docker exec n8n cat /home/node/.ssh/id_ed25519.pub
+
+# Add to alpine-utility
+docker exec alpine-utility sh -c 'mkdir -p /root/.ssh && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBoU6n6VqsTqysPQjXp1jKHyEEM9IOfcQIaLIqos0BbV n8n-to-alpine-utility" > /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && chmod 700 /root/.ssh'
+
+# Test connection
+docker exec n8n ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility echo "SSH key auth works!"
+```
+
+**Script updates**:
+```bash
+# Update the copy script
+docker exec alpine-utility sh -c 'cat > /tmp/copy-podcast.sh << "EOF"
+# [new script content]
+EOF'
+
+# Make executable
+docker exec alpine-utility chmod +x /tmp/copy-podcast.sh
+```
+
+---
+
 ## n8n Workflow Structure
 
 ### Workflow 1: Podcast Generation (Daily 2PM)
+
+**Current Implementation Status**: AudioBookshelf integration completed and tested
 
 ```
 [Schedule Trigger: Cron 0 14 * * *]
@@ -528,76 +805,91 @@ docker exec -it open-notebook ollama list
 [Set Variables: Date, Timestamps]
     ↓
 [HTTP Request: GET Karakeep Bookmarks]
-    (Last 24 hours, all tags)
+    (Query bookmarks from last 24 hours)
     ↓
-[Function: Filter & Group by Primary Tag]
-    (Creates array of tag groups)
+[Filter Bookmarks]
+    (Exclude already podcasted, group by tag)
     ↓
-[IF: Any groups with 2+ articles?]
+[IF: Any bookmarks to process?]
     ├─ NO → [End: No podcasts needed]
     └─ YES ↓
-[Split Into Batches]
-    (One iteration per tag group)
+[Loop: For Each Tag Group]
     ↓
-[Loop Start: For Each Tag Group]
-    ↓
-    [HTTP Request: Fetch Full Article Content]
-        (Parallel requests for all articles in group)
+    [Build Markdown Content]
+        (Combine articles with titles and URLs)
         ↓
-    [Function: Format Markdown for Open Notebook]
-        (Combine articles, add metadata)
+    [HTTP Request: POST /api/podcasts/generate]
+        (Open Notebook API with custom profiles)
+        Body: {
+          episode_profile: "tech_discussion_qwen",
+          speaker_profile: "tech_experts_local",
+          episode_name: "Daily Digest - {Tag} - {Date}",
+          content: "{markdown}"
+        }
         ↓
-    [Write File: Save .md to temp directory]
-        (/home/claude/temp/podcasts/2024-12-04-AI.md)
+    [Wait 10 seconds]
+        (Initial processing delay)
         ↓
-    [Execute Command: docker-compose up -d]
-        (Start Open Notebook containers)
+    [Loop: Check Episode Status]
+        (Poll every 30s, max 10 minutes)
         ↓
-    [Wait: 60 seconds]
-        (Allow processing time)
+        [HTTP Request: GET /api/episodes/{episode_id}]
         ↓
-    [Execute Command: Check if MP3 exists]
-        ↓
-    [IF: MP3 Generated Successfully?]
-        ├─ NO → [Log Error & Skip]
+        [Is Completed?]
+        ├─ NO → [Wait 30s and retry]
         └─ YES ↓
-        [Function: Create Show Notes Content]
-            (Format article links)
-            ↓
-        [Write File: Save show notes .txt]
-            ↓
-        [Move Files: MP3 + TXT to AudioBookShelf]
-            (/mnt/user-data/audiobookshelf/Daily-Digests/)
-            ↓
-        [HTTP Request: PATCH Karakeep Bookmarks]
-            (Add #podcasted and #podcasted-YYYY-MM-DD tags)
-            ↓
-        [Execute Command: docker-compose down]
-            (Clean up containers)
-            ↓
-        [Loop Continue]
+            [Get Episode Details] (Code node)
+                Extract: episode_id, audio_file path
+                ↓
+            [Create Show Notes] (Code node)
+                Format: episode name + article list + URLs
+                ↓
+            [Prepare Copy Data] (Code node)
+                Package: episodeName, audioFile, showNotes
+                ↓
+            [Copy Files via Alpine Utility] (Execute Command)
+                SSH: alpine@localhost:2223
+                Command: /tmp/copy-podcast.sh
+                Args: episodeName, audioFile, showNotes
+                ↓
+            [Scan AudioBookShelf Library] (HTTP Request)
+                POST /api/libraries/scan
+                (Triggers immediate library refresh)
+                ↓
+            [Tag Bookmarks as Podcasted]
+                (Add #podcasted tag to prevent reprocessing)
+                ↓
+            [Archive Bookmark]
+                (Archive bookmark in Karakeep to keep main view clean)
+                ↓
+[End Loop]
     ↓
-[Merge: Collect Results from All Groups]
-    ↓
-[Function: Build Summary Message]
-    ↓
-[HTTP Request: Send Notification]
-    (Webhook or Pushover)
+[Send Success Notification]
+    (Optional: notify user of completed podcasts)
     ↓
 [End]
 ```
 
+**Key Differences from Original Plan**:
+- Uses Open Notebook API instead of file-based processing
+- Polls for completion status instead of fixed wait time
+- Uses alpine-utility bastion host for docker cp operations
+- Triggers AudioBookShelf scan via API instead of file monitoring
+
 ### Workflow 2: Cleanup (Daily 3AM)
+
+This workflow cleans up old archived bookmarks to prevent database clutter.
 
 ```
 [Schedule Trigger: Cron 0 3 * * *]
     ↓
 [Set Variables: Calculate 7-day cutoff date]
     ↓
-[HTTP Request: GET Karakeep Bookmarks]
-    (tags=podcasted, createdBefore=7daysago, starred=false)
+[HTTP Request: GET Archived Bookmarks]
+    (archived=true, limit=100)
     ↓
-[Function: Count bookmarks to delete]
+[Function: Filter old unstarred bookmarks]
+    (createdBefore=7daysago, starred=false)
     ↓
 [IF: Any bookmarks to delete?]
     ├─ NO → [End: Nothing to clean]
@@ -605,17 +897,25 @@ docker exec -it open-notebook ollama list
     [Function: Log bookmarks for deletion]
         (For audit trail)
         ↓
-    [HTTP Request: Batch DELETE Karakeep]
-        (Delete all matched bookmarks)
+    [HTTP Request: DELETE each bookmark]
+        (Loop through filtered bookmarks)
+        ↓
+    [Function: Build summary]
         ↓
     [IF: Deleted count > 10?]
         ├─ NO → [Silent: No notification]
         └─ YES ↓
-        [HTTP Request: Send Notification]
-            ("Cleaned up X bookmarks")
+        [Log Notification]
+            ("🧹 Cleaned up X old podcast bookmarks")
             ↓
 [End]
 ```
+
+**Key Changes from Original Design:**
+- Now targets archived bookmarks instead of searching by "podcasted" tag
+- Works in conjunction with podcast workflow that archives bookmarks after processing
+- Keeps starred/favorited bookmarks even if archived
+- Only deletes bookmarks older than 7 days
 
 ---
 
@@ -882,7 +1182,7 @@ docker run --rm \
 
 ---
 
-**Last Updated:** December 8, 2024
-**Version:** 1.0
+**Last Updated:** December 11, 2024
+**Version:** 1.1
 **Author:** Bud
-**Status:** Ready for Implementation
+**Status:** Production - Fully Implemented and Tested

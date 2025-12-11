@@ -39,15 +39,15 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "http://karakeep:3000/api/v1/bookmarks/search",
+        "url": "http://192.168.0.9:3000/api/v1/bookmarks",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
-              "name": "tags",
-              "value": "podcasted"
+              "name": "archived",
+              "value": "true"
             },
             {
               "name": "limit",
@@ -57,20 +57,20 @@
         },
         "options": {}
       },
-      "name": "Get Podcasted Bookmarks",
+      "name": "Get Archived Bookmarks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [650, 300],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "1",
-          "name": "Karakeep API"
+          "id": "X2FyQ0AMsq7uEHhG",
+          "name": "Header Auth account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Filter bookmarks for deletion:\n// - Tagged with \"podcasted\"\n// - Older than 7 days\n// - NOT starred/favourited\n\nconst sevenDaysAgo = new Date($input.first().json.sevenDaysAgo);\nconst bookmarks = $input.first().json.bookmarks || [];\n\nconst toDelete = bookmarks.filter(bookmark => {\n  const created = new Date(bookmark.createdAt);\n  const isOld = created < sevenDaysAgo;\n  const notStarred = !bookmark.favourited;\n  \n  return isOld && notStarred;\n});\n\nif (toDelete.length === 0) {\n  return [];\n}\n\nreturn toDelete.map(bookmark => ({\n  json: {\n    id: bookmark.id,\n    title: bookmark.title,\n    createdAt: bookmark.createdAt,\n    url: bookmark.url\n  }\n}));"
+        "jsCode": "// Filter bookmarks for deletion:\n// - Archived in Karakeep\n// - Older than 7 days\n// - NOT starred/favourited\n\nconst sevenDaysAgo = new Date($input.first().json.sevenDaysAgo);\nconst bookmarks = $input.first().json.bookmarks || [];\n\nconst toDelete = bookmarks.filter(bookmark => {\n  const created = new Date(bookmark.createdAt);\n  const isOld = created < sevenDaysAgo;\n  const notStarred = !bookmark.favourited;\n  \n  return isOld && notStarred;\n});\n\nif (toDelete.length === 0) {\n  return [];\n}\n\nreturn toDelete.map(bookmark => ({\n  json: {\n    id: bookmark.id,\n    title: bookmark.title,\n    createdAt: bookmark.createdAt,\n    url: bookmark.url\n  }\n}));"
       },
       "name": "Filter Old Unstarred",
       "type": "n8n-nodes-base.code",
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Log bookmarks before deletion for audit trail\nconst items = $input.all();\nconst bookmarkList = items.map(item => {\n  return `- ${item.json.title} (${item.json.createdAt}): ${item.json.url}`;\n}).join('\\n');\n\nconst auditLog = `Deleting ${items.length} old podcasted bookmarks:\\n${bookmarkList}`;\n\nconsole.log(auditLog);\n\nreturn items;"
+        "jsCode": "// Log bookmarks before deletion for audit trail\nconst items = $input.all();\nconst bookmarkList = items.map(item => {\n  return `- ${item.json.title} (${item.json.createdAt}): ${item.json.url}`;\n}).join('\\n');\n\nconst auditLog = `Deleting ${items.length} old archived bookmarks:\\n${bookmarkList}`;\n\nconsole.log(auditLog);\n\nreturn items;"
       },
       "name": "Log for Audit",
       "type": "n8n-nodes-base.code",
@@ -113,7 +113,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=http://karakeep:3000/api/v1/bookmarks/{{ $json.id }}",
+        "url": "=http://192.168.0.9:3000/api/v1/bookmarks/{{ $json.id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -124,8 +124,8 @@
       "position": [1450, 400],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "1",
-          "name": "Karakeep API"
+          "id": "X2FyQ0AMsq7uEHhG",
+          "name": "Header Auth account"
         }
       }
     },
@@ -188,14 +188,14 @@
       "main": [
         [
           {
-            "node": "Get Podcasted Bookmarks",
+            "node": "Get Archived Bookmarks",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Podcasted Bookmarks": {
+    "Get Archived Bookmarks": {
       "main": [
         [
           {
