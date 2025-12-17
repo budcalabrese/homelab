@@ -526,6 +526,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /Volumes/docker/container_configs/alpine-utility:/config
       - /Volumes/docker/container_configs/audiobookshelf/podcasts:/mnt/audiobookshelf
+      # Budget export script volumes
+      - /Volumes/docker/container_configs/budget-dashboard/app-data:/mnt/budget-dashboard:ro
+      - /Volumes/docker/container_configs/budget-dashboard-gf/app-data:/mnt/budget-dashboard-gf:ro
+      - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
     ports:
       - "2223:22"
     restart: unless-stopped

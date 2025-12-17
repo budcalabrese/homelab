@@ -121,14 +121,14 @@ curl -X POST http://localhost:5055/api/episode-profiles \
 ### 4.2 Import Workflows
 
 1. Click "+ Add workflow" → "Import from File"
-2. Select `n8n-workflows/karakeep-daily-podcast.json`
+2. Select `../n8n-workflows/Karakeep Daily Podcast Generation.json`
 3. Click "Import"
 4. **Assign credentials**: Click on any node that shows "Select Credential"
 5. Choose "Karakeep API" from dropdown
 6. Click "Save" (top-right)
 
 Repeat for cleanup workflow:
-1. Import `n8n-workflows/karakeep-bookmark-cleanup.json`
+1. Import `../n8n-workflows/Karakeep Bookmark Cleanup.json`
 2. Assign "Karakeep API" credential
 3. Save
 
@@ -255,11 +255,11 @@ Should return JSON with bookmarks.
 
 ## Documentation
 
-Full documentation available in `docs/`:
-- [Open Notebook Setup](docs/open-notebook-setup.md)
-- [Karakeep API Reference](docs/karakeep-api-reference.md)
-- [Karakeep Podcast Workflow](docs/karakeep-podcast-workflow.md)
-- [n8n Workflows README](n8n-workflows/README.md)
+Full documentation available:
+- [n8n Workflows README](../n8n-workflows/README.md) - All n8n workflow documentation
+- [Open Notebook Setup](../docs/open-notebook-setup.md)
+- [Karakeep API Reference](../docs/karakeep-api-reference.md)
+- [Karakeep Podcast Workflow](../docs/karakeep-podcast-workflow.md)
 
 ## Support
 

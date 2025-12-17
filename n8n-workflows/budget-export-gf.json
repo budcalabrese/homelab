@@ -1,0 +1,152 @@
+{
+  "name": "Budget Export - GF",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "57 23 L * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "Triggers on last day of month at 11:57 PM"
+    },
+    {
+      "parameters": {
+        "command": "docker exec alpine-utility /bin/sh /config/scripts/export_monthly_snapshot_gf.sh",
+        "options": {}
+      },
+      "id": "execute-export",
+      "name": "Execute Export Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "notes": "Runs export script in alpine-utility container"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.exitCode }}",
+              "operation": "equals",
+              "value2": "0"
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "notes": "Verify export completed successfully"
+    },
+    {
+      "parameters": {
+        "message": "✓ GF Budget export completed successfully!\n\nOutput:\n{{ $json.stdout }}",
+        "options": {}
+      },
+      "id": "success-notification",
+      "name": "Success Notification",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "notes": "Optional: Replace with actual notification node (Discord, Slack, etc.)"
+    },
+    {
+      "parameters": {
+        "message": "✗ GF Budget export FAILED!\n\nError:\n{{ $json.stderr }}\n\nExit Code: {{ $json.exitCode }}",
+        "options": {}
+      },
+      "id": "failure-notification",
+      "name": "Failure Notification",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "notes": "Optional: Replace with actual notification node (Discord, Slack, etc.)"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute Export Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Export Script": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "id": "budget-export-gf",
+  "meta": {
+    "instanceId": "your-instance-id-here"
+  },
+  "tags": [
+    {
+      "name": "budget",
+      "id": "budget"
+    },
+    {
+      "name": "automation",
+      "id": "automation"
+    }
+  ]
+}
