@@ -191,8 +191,19 @@ docker compose down
 
 ### Update all services
 ```bash
+# Pull latest registry images
 docker compose pull
+
+# Rebuild custom containers without cache
+docker compose build --no-cache
+
+# Restart all services
 docker compose up -d
+```
+
+Or use the automated update script:
+```bash
+bash scripts/homelab_update.sh
 ```
 
 ## Security
@@ -229,17 +240,27 @@ git check-ignore env/.env  # Should output: env/.env
 The `scripts/` directory contains utility scripts for homelab maintenance:
 
 ### homelab_update.sh
-Updates all homelab components:
-- Updates Ollama models
-- Updates Docker container images
-- Rebuilds and restarts containers
-- Prunes unused Docker images
-- Updates Homebrew packages
+Comprehensive update script for all homelab components:
+
+**What it does**:
+1. Updates all Ollama models
+2. Pulls latest Docker images from registries
+3. Rebuilds custom containers (Budget Dashboard, Learning Dashboard) **without cache**
+4. Restarts all Docker services
+5. Prunes unused Docker images
+6. Updates Homebrew packages
+
+**Why `--no-cache` is used**:
+- Forces rebuild of custom containers even when Dockerfiles haven't changed
+- Ensures Python dependencies (requirements.txt) are updated
+- Prevents stale cached layers from being reused
 
 Usage:
 ```bash
 bash scripts/homelab_update.sh
 ```
+
+**Note**: The script uses `docker compose build --no-cache` to rebuild ALL services with `build:` directives in compose.yml. Services using `image:` (registry pulls) are updated via `docker compose pull`.
 
 ### gitea_backup.sh
 Backs up Gitea database and repositories:
