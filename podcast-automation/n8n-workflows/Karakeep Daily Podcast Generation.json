@@ -16,10 +16,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [
-        20352,
-        2928
+        19248,
+        2752
       ],
-      "id": "12c0b39b-fe7d-4581-8739-aa11094defcf"
+      "id": "6f00bf1b-aa9f-40d5-9f37-3732bf63b208"
     },
     {
       "parameters": {
@@ -29,10 +29,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.2,
       "position": [
-        20544,
-        2928
+        19440,
+        2752
       ],
-      "id": "fbfa0894-fb4b-4b8d-9a15-0d2cd5cf983f"
+      "id": "155e5405-33e3-4164-a2e9-81e024bdc036"
     },
     {
       "parameters": {
@@ -49,38 +49,46 @@
             {
               "name": "includeContent",
               "value": "true"
+            },
+            {
+              "name": "tags",
+              "value": "consume"
+            },
+            {
+              "name": "archived",
+              "value": "false"
             }
           ]
         },
         "options": {}
       },
-      "name": "Get Recent Bookmarks",
+      "name": "Get Bookmarks Tagged #consume",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        20752,
-        2928
+        19648,
+        2752
       ],
-      "id": "bfb1155d-72dd-4b8b-8580-e713b3c402cf",
+      "id": "46df1cb3-b1c6-4baf-8565-c3e114e70885",
       "credentials": {
         "httpHeaderAuth": {
           "id": "X2FyQ0AMsq7uEHhG",
-          "name": "Header Auth account"
+          "name": "Karakeep API"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Filter bookmarks from last 24 hours and group by primary tag\nconst bookmarks = $input.first().json.bookmarks || [];\nconst now = new Date();\n\n// Calculate 24 hours ago (simpler approach) - TEMP: Using 7 days for testing\nconst timestamp24HoursAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));\n\nconsole.log('Current time:', now.toISOString());\nconsole.log('24 hours ago threshold:', timestamp24HoursAgo.toISOString());\nconsole.log('Total bookmarks received:', bookmarks.length);\n\n// Filter bookmarks from last 24 hours AND exclude already podcasted bookmarks\nconst recentBookmarks = bookmarks.filter(bookmark => {\n  // Try different timestamp fields that Karakeep might use\n  const createdAtField = bookmark.createdAt || bookmark.created_at || bookmark.createdTime;\n  const created = new Date(createdAtField);\n  \n  // Check if bookmark has been podcasted already\n  const isPodcasted = bookmark.tags && bookmark.tags.some(tag => \n    tag.name === 'podcasted' || tag.name.startsWith('podcasted-')\n  );\n  \n  const isRecent = created > timestamp24HoursAgo;\n  \n  console.log(`Bookmark \"${bookmark.title}\" created at:`, created.toISOString(), 'Recent?', isRecent, 'Already podcasted?', isPodcasted);\n  \n  return isRecent && !isPodcasted;\n});\n\nconsole.log('Recent bookmarks found (excluding already podcasted):', recentBookmarks.length);\n\nif (recentBookmarks.length === 0) {\n  return [];\n}\n\n// Group by primary tag\nconst tagGroups = {};\nrecentBookmarks.forEach(bookmark => {\n  if (bookmark.tags && bookmark.tags.length > 0) {\n    const primaryTag = bookmark.tags[0].name;\n    if (!tagGroups[primaryTag]) {\n      tagGroups[primaryTag] = [];\n    }\n    tagGroups[primaryTag].push(bookmark);\n  }\n});\n\nconsole.log('Tag groups:', Object.keys(tagGroups));\n\n// Filter groups with 2+ bookmarks and create output\nconst result = [];\nfor (const [tag, items] of Object.entries(tagGroups)) {\n  console.log(`Tag \"${tag}\" has ${items.length} bookmarks`);\n  if (items.length >= 2) {\n    result.push({\n      tag: tag,\n      bookmarkCount: items.length,\n      bookmarks: items,\n      currentDate: $input.first().json.currentDate\n    });\n  }\n}\n\nconsole.log('Final tag groups with 2+ bookmarks:', result.length);\n\nreturn result.map(item => ({ json: item }));"
+        "jsCode": "// Group bookmarks tagged with #consume by their topic tag\nconst bookmarks = $input.first().json.bookmarks || [];\n\nconsole.log('Total bookmarks with #consume tag:', bookmarks.length);\n\nif (bookmarks.length === 0) {\n  return [];\n}\n\n// Group by topic tag (excluding 'consume' tag)\nconst tagGroups = {};\nbookmarks.forEach(bookmark => {\n  if (bookmark.tags && bookmark.tags.length > 0) {\n    // Find the first tag that's not 'consume' (the topic tag)\n    const topicTag = bookmark.tags.find(tag => tag.name !== 'consume');\n    \n    if (topicTag) {\n      const tagName = topicTag.name;\n      if (!tagGroups[tagName]) {\n        tagGroups[tagName] = [];\n      }\n      tagGroups[tagName].push(bookmark);\n    } else {\n      console.log(`WARNING: Bookmark \"${bookmark.title}\" only has #consume tag, no topic tag`);\n    }\n  }\n});\n\nconsole.log('Topic tag groups:', Object.keys(tagGroups));\n\n// Filter groups with 2+ bookmarks and create output\nconst result = [];\nfor (const [tag, items] of Object.entries(tagGroups)) {\n  console.log(`Topic \"${tag}\" has ${items.length} bookmarks`);\n  if (items.length >= 2) {\n    result.push({\n      tag: tag,\n      bookmarkCount: items.length,\n      bookmarks: items,\n      currentDate: $input.first().json.currentDate\n    });\n  } else {\n    console.log(`Skipping topic \"${tag}\" - only ${items.length} bookmark(s), need at least 2`);\n  }\n}\n\nconsole.log('Final topic groups with 2+ bookmarks:', result.length);\n\nreturn result.map(item => ({ json: item }));"
       },
-      "name": "Filter and Group by Tag",
+      "name": "Group by Topic Tag",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        20944,
-        2928
+        19840,
+        2752
       ],
-      "id": "d38a44b6-3577-403e-adf6-090585a3794b"
+      "id": "153a97d4-81b3-400c-80dc-c0b3c878c083"
     },
     {
       "parameters": {
@@ -97,10 +105,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        21152,
-        2928
+        20048,
+        2752
       ],
-      "id": "1cbc0c05-7134-4458-b9df-f10df399f827"
+      "id": "3ec73cc0-5e7c-4fff-b46d-525b80684ad1"
     },
     {
       "parameters": {},
@@ -108,10 +116,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        21344,
-        2816
+        20240,
+        2640
       ],
-      "id": "1031aa71-4997-4696-95a1-f210afd2db09"
+      "id": "f7a8569a-afa5-43c7-be76-9efa0f6cb11d"
     },
     {
       "parameters": {
@@ -121,10 +129,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        21344,
-        3024
+        20240,
+        2848
       ],
-      "id": "80eeb6e7-5773-4a5f-8e91-c1b69c5728a2"
+      "id": "e0cad043-2bc0-4a6e-9050-17357cff5f51"
     },
     {
       "parameters": {
@@ -134,10 +142,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        21552,
-        3024
+        20448,
+        2848
       ],
-      "id": "43cb638a-dab3-4ff5-9ee0-2db8d122a93f"
+      "id": "47947135-f4e7-4fbe-917e-6807a40d92fb"
     },
     {
       "parameters": {
@@ -179,10 +187,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        21744,
-        3024
+        20640,
+        2848
       ],
-      "id": "8819e7c8-7227-48b3-ac40-dbe37c630280"
+      "id": "d62e7e40-310d-4a7b-ad7f-2cc328f14377"
     },
     {
       "parameters": {
@@ -193,10 +201,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        21952,
-        3024
+        20848,
+        2848
       ],
-      "id": "29691553-1f69-462d-a755-8dc55d584267",
+      "id": "28ba8941-14ce-4ed6-8ec5-f35557f1dfd8",
       "webhookId": "5a0645ae-0035-4aab-b04a-42804e769ed3"
     },
     {
@@ -208,10 +216,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        22160,
-        3024
+        21056,
+        2848
       ],
-      "id": "b1f7c4fa-c8f5-4099-b9b9-71d7c96998c9"
+      "id": "b85617ae-f6ef-4cb6-aa7c-a61c54e97ddc"
     },
     {
       "parameters": {
@@ -222,10 +230,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [
-        22528,
-        3136
+        21424,
+        2960
       ],
-      "id": "59aa9352-9f7b-4ac9-83e9-57b89167ff48",
+      "id": "feb4e39e-1c31-474e-b56c-6e2924dda0f6",
       "webhookId": "473f5961-4b7d-4e98-a2d1-def861336794"
     },
     {
@@ -236,10 +244,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        23296,
-        3168
+        22192,
+        2992
       ],
-      "id": "6d87d795-9d73-4acc-8dbe-a1cacd7c629c"
+      "id": "c9c6f700-d003-415d-b595-c2a52ce9d993"
     },
     {
       "parameters": {
@@ -249,10 +257,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        21616,
-        2832
+        20512,
+        2656
       ],
-      "id": "d505f085-043b-42bf-b0b4-93588efe986f"
+      "id": "8234d896-e056-4c6e-91b0-c6189aba3ac8"
     },
     {
       "parameters": {
@@ -282,10 +290,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        22320,
-        3024
+        21216,
+        2848
       ],
-      "id": "20c0df05-4db1-4aff-ba2b-daefdea49d5b",
+      "id": "5fec1549-e2f4-46d3-8961-6a070e797d38",
       "name": "Is Completed?"
     },
     {
@@ -295,10 +303,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        22528,
-        2960
+        21424,
+        2784
       ],
-      "id": "546abb98-1f24-4c61-8490-91212fd2ff2f",
+      "id": "c58acb19-1d62-42f1-a603-1d56b661bac2",
       "name": "Loop Over Items"
     },
     {
@@ -309,10 +317,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        22528,
-        2816
+        21424,
+        2640
       ],
-      "id": "7df58d0d-e0a3-43b0-9258-0bd29d76c418"
+      "id": "4a75d52e-28c8-4ca6-b3a3-286a49e7a657"
     },
     {
       "parameters": {
@@ -322,10 +330,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        22736,
-        2816
+        21632,
+        2640
       ],
-      "id": "eb65b6f8-a85c-47c1-881e-d02c3529df9c"
+      "id": "8204a39e-30ae-4742-ac3e-4c0bc1fcdfe2"
     },
     {
       "parameters": {
@@ -335,10 +343,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        22912,
-        2816
+        21808,
+        2640
       ],
-      "id": "e068aa8e-9730-4343-bb92-758873c9373a"
+      "id": "c59a7870-cd25-4352-b9c5-259c8b7f0eb2"
     },
     {
       "parameters": {
@@ -348,10 +356,10 @@
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [
-        23072,
-        2816
+        21968,
+        2640
       ],
-      "id": "1b068dbd-fa48-47e7-8f6a-2bdd1526cc81"
+      "id": "f008b06a-0562-4927-a160-fec7c67dafc5"
     },
     {
       "parameters": {
@@ -365,14 +373,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        23248,
-        2816
+        22144,
+        2640
       ],
-      "id": "81050ae1-8ade-43b0-8fef-0d8f68232af7",
+      "id": "867ffd42-676c-4e99-8089-e019f36828ef",
       "credentials": {
         "httpHeaderAuth": {
           "id": "pjUma9Bm5uZDUzUy",
-          "name": "Header Auth account 2"
+          "name": "AudioBookshelf API"
         }
       }
     },
@@ -383,35 +391,35 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        23440,
-        2928
+        22336,
+        2752
       ],
-      "id": "6fa90280-e775-407a-8f81-697da601f368",
+      "id": "d64dc141-45de-41b5-8e12-241097b5dc25",
       "name": "Format Single Bookmark"
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=http://192.168.0.9:3000/api/v1/bookmarks/{{ $json.id }}/tags",
+        "method": "PATCH",
+        "url": "=http://192.168.0.9:3000/api/v1/bookmarks/{{ $json.id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"tags\": [\n    {\"tagName\": \"podcasted\"},\n    {\"tagName\": \"podcasted-{{ $json.currentDate }}\"}\n  ]\n}",
+        "jsonBody": "={\n  \"tags\": [\n    {\"tagName\": \"podcasted\"},\n    {\"tagName\": \"podcasted-{{ $json.currentDate }}\"}\n  ],\n  \"removeTag\": \"consume\"\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        23648,
-        2928
+        22544,
+        2752
       ],
-      "id": "62ef309d-1f44-49eb-a102-156fe689da96",
-      "name": "Tag Bookmarks as Podcasted",
+      "id": "b5354f1b-a4fa-45e8-8237-c56af69adff5",
+      "name": "Update Bookmark Tags",
       "credentials": {
         "httpHeaderAuth": {
           "id": "X2FyQ0AMsq7uEHhG",
-          "name": "Header Auth account"
+          "name": "Karakeep API"
         }
       }
     },
@@ -429,15 +437,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        23856,
-        2928
+        22752,
+        2752
       ],
-      "id": "7a2b8c9d-1e2f-3456-789a-bcdef0123456",
+      "id": "f6b456a9-cd1c-4eb0-a286-58154546109a",
       "name": "Archive Bookmark",
       "credentials": {
         "httpHeaderAuth": {
           "id": "X2FyQ0AMsq7uEHhG",
-          "name": "Header Auth account"
+          "name": "Karakeep API"
         }
       }
     }
@@ -459,25 +467,25 @@
       "main": [
         [
           {
-            "node": "Get Recent Bookmarks",
+            "node": "Get Bookmarks Tagged #consume",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Recent Bookmarks": {
+    "Get Bookmarks Tagged #consume": {
       "main": [
         [
           {
-            "node": "Filter and Group by Tag",
+            "node": "Group by Topic Tag",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter and Group by Tag": {
+    "Group by Topic Tag": {
       "main": [
         [
           {
@@ -685,14 +693,14 @@
       "main": [
         [
           {
-            "node": "Tag Bookmarks as Podcasted",
+            "node": "Update Bookmark Tags",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Tag Bookmarks as Podcasted": {
+    "Update Bookmark Tags": {
       "main": [
         [
           {
@@ -719,7 +727,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "ec117823-39bb-4204-94b4-0476a38ee21c",
+  "versionId": "97f7b223-3ef6-495e-9228-edfe7498cd94",
   "meta": {
     "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
   },

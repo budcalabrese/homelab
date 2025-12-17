@@ -2,6 +2,26 @@
 
 This directory contains n8n workflow JSON files for automating the Karakeep-to-Podcast pipeline.
 
+## How It Works
+
+### Tagging Strategy
+
+**The system uses an opt-in model for podcasting:**
+
+1. **Save bookmarks normally** → They stay in your Karakeep library forever (95% of your bookmarks)
+2. **Add `#consume` tag** → Article gets podcasted and auto-deleted after 7 days (5% of bookmarks)
+
+**Example workflow:**
+- Save "How to configure SSH on Mac" → No `#consume` tag → Stays in library permanently
+- Save "New GPT-5 announcement" → Add `#consume` tag → Podcasted at 2pm, deleted after 7 days
+
+**Tag combinations:**
+- Karakeep AI auto-tags: `#ai`, `#finance`, `#hometech`, etc.
+- You add: `#consume` (if you want it podcasted)
+- Result: "Daily Digest - AI" podcast with all AI articles tagged `#consume`
+
+**Your permanent bookmark library is never touched** - only bookmarks explicitly tagged with `#consume` are processed.
+
 ## Workflows
 
 ### 1. Daily Podcast Generation (`karakeep-daily-podcast.json`)
@@ -10,18 +30,22 @@ This directory contains n8n workflow JSON files for automating the Karakeep-to-P
 **Trigger**: Cron `0 14 * * *`
 
 **What it does**:
-1. Fetches bookmarks from Karakeep added in the last 24 hours
-2. Groups bookmarks by their primary tag
-3. For each tag group with 2+ bookmarks:
+1. Fetches bookmarks from Karakeep tagged with `#consume` (not archived)
+2. Groups bookmarks by their topic tag (`#ai`, `#finance`, `#hometech`, etc.)
+3. For each topic group with 2+ bookmarks:
    - Builds markdown content from bookmark data
    - Generates podcast using Open Notebook with Qwen2.5
    - Waits for podcast generation to complete
-   - Tags bookmarks as `#podcasted` and `#podcasted-YYYY-MM-DD`
-4. Logs summary of generated podcasts
+   - Copies MP3 and show notes to AudioBookShelf via alpine-utility
+   - Removes `#consume` tag, adds `#podcasted` and `#podcasted-YYYY-MM-DD`
+   - Archives bookmark in Karakeep
+4. Triggers AudioBookShelf library scan
+5. Logs summary of generated podcasts
 
 **Output**:
-- Podcasts stored in Open Notebook at `/app/data/podcasts/episodes/`
-- Bookmarks tagged for future cleanup
+- Podcasts in AudioBookShelf at `/Volumes/docker/container_configs/audiobookshelf/podcasts/Daily-Digests/`
+- Bookmarks archived and tagged for future cleanup
+- Your permanent bookmark library (without `#consume` tag) remains untouched
 
 ### 2. Bookmark Cleanup (`karakeep-bookmark-cleanup.json`)
 
@@ -29,17 +53,16 @@ This directory contains n8n workflow JSON files for automating the Karakeep-to-P
 **Trigger**: Cron `0 3 * * *`
 
 **What it does**:
-1. Fetches all bookmarks tagged with `#podcasted`
-2. Filters for bookmarks that are:
-   - Older than 7 days
-   - NOT starred/favourited
+1. Fetches archived bookmarks tagged with `#podcasted`
+2. Filters for bookmarks older than 7 days
 3. Logs bookmarks to be deleted (audit trail)
-4. Deletes old bookmarks
+4. Deletes old podcasted bookmarks
 5. Sends notification if more than 10 bookmarks deleted
 
 **Output**:
 - Cleanup log in n8n execution history
 - Optional notification for large cleanups
+- **Your permanent bookmark library (without `#consume` tag) is never touched**
 
 ## Setup Instructions
 
@@ -81,8 +104,9 @@ Both workflows require a Karakeep API credential:
 #### Test Podcast Generation
 
 1. **Add test bookmarks**:
-   - Add 3-5 bookmarks in Karakeep with the same tag (e.g., `test`)
-   - Make sure they have content
+   - Add 3-5 bookmarks in Karakeep
+   - Tag 2-3 of them with `#consume` (leave others without it)
+   - Make sure Karakeep AI auto-tags them (e.g., `#ai`, `#hometech`)
 
 2. **Run workflow manually**:
    - Open "Karakeep Daily Podcast Generation" workflow
@@ -90,10 +114,12 @@ Both workflows require a Karakeep API credential:
    - Watch the execution flow
 
 3. **Verify results**:
-   - Check Open Notebook UI: http://localhost:8503
-   - Look for episode: "Daily Digest - test - YYYY-MM-DD"
-   - Verify audio file was generated
-   - Check Karakeep bookmarks have `#podcasted` tag
+   - Check AudioBookShelf: http://localhost:13378
+   - Look for episodes: "Daily Digest - AI - MM-DD-YYYY", etc.
+   - Verify MP3 and .txt show notes files exist
+   - Check Karakeep:
+     - Bookmarks with `#consume` are now archived with `#podcasted` tag
+     - Bookmarks without `#consume` are still in your main library untouched
 
 #### Test Cleanup
 
@@ -101,7 +127,7 @@ Both workflows require a Karakeep API credential:
    - You can't easily simulate 7-day-old bookmarks
    - Alternative: Edit the "Calculate Cutoff Date" node
    - Change `minus({ days: 7 })` to `minus({ hours: 1 })`
-   - This will clean up podcasted bookmarks older than 1 hour
+   - This will clean up archived podcasted bookmarks older than 1 hour
 
 2. **Run workflow manually**:
    - Open "Karakeep Bookmark Cleanup" workflow
@@ -109,8 +135,8 @@ Both workflows require a Karakeep API credential:
    - Check execution log for deleted bookmarks
 
 3. **Verify results**:
-   - Check Karakeep - test bookmarks should be gone
-   - Starred bookmarks should remain
+   - Check Karakeep - archived `#podcasted` bookmarks should be gone
+   - Your permanent bookmarks (without `#consume` tag) should remain untouched
 
 4. **Restore production setting**:
    - Change cutoff back to `minus({ days: 7 })`
@@ -186,12 +212,13 @@ Once tested successfully:
 **No bookmarks deleted**
 - Verify bookmarks are older than 7 days
 - Check bookmarks have `#podcasted` tag
-- Ensure bookmarks are not starred
+- Ensure bookmarks are archived
 
 **Wrong bookmarks deleted**
-- Check "Filter Old Unstarred" logic
+- Check "Filter Old Podcasted" logic
 - Review audit log in workflow execution
 - Verify cutoff date calculation
+- **Important**: Only archived `#podcasted` bookmarks should be deleted, never your permanent library
 
 ### General Issues
 

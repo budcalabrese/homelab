@@ -31,11 +31,14 @@ iPhone → Karakeep (auto-tag) → n8n (2pm trigger) → Open Notebook → Audio
   - `#finance` - Financial news and analysis
   - `#hometech` - Smart home and homelab content
   - (Additional tags as configured)
+- **Manual decision:** Add `#consume` tag if you want this article podcasted
+  - Articles to consume once (news, announcements, analysis) → Add `#consume`
+  - Reference articles to keep (how-tos, documentation, guides) → No extra tag needed
 
 ### Phase 2: Podcast Generation (Daily at 2:00 PM)
-1. n8n queries Karakeep API for bookmarks added in last 24 hours
-2. Groups bookmarks by primary tag
-3. For each tag group with 2+ articles:
+1. n8n queries Karakeep API for bookmarks tagged with `#consume`
+2. Groups bookmarks by topic tag (`#ai`, `#finance`, `#hometech`, etc.)
+3. For each topic group with 2+ articles:
    - Fetches full article content and URLs
    - Creates markdown file for Open Notebook
    - Submits podcast generation request to Open Notebook API
@@ -44,21 +47,85 @@ iPhone → Karakeep (auto-tag) → n8n (2pm trigger) → Open Notebook → Audio
    - Creates show notes with article titles and URLs
    - Copies MP3 and show notes to AudioBookShelf via alpine-utility bastion host
    - Triggers AudioBookShelf library scan
-   - Tags bookmarks as `#podcasted` and `#podcasted-YYYY-MM-DD`
+   - Removes `#consume` tag, adds `#podcasted` and `#podcasted-YYYY-MM-DD`
+   - Archives bookmark in Karakeep
 4. Sends notification: "X podcasts ready: AI, Finance, Home Tech"
 
-### Phase 3: Listen & Decide (2:00-3:00 PM)
+### Phase 3: Listen (2:00-3:00 PM)
 - Open AudioBookShelf app/web interface
 - Listen to topic-based podcasts
-- Access article links via episode show notes
-- Star interesting bookmarks in Karakeep for permanent keeping
+- Access article links via episode show notes if you want to read the full article
+- Your permanent bookmark library (items without `#consume` tag) remains untouched in Karakeep
 
 ### Phase 4: Automated Cleanup (Daily at 3:00 AM)
-- Queries archived bookmarks older than 7 days that are NOT starred
-- Deletes old archived bookmarks automatically
+- Queries archived bookmarks with `#podcasted` tag older than 7 days
+- **Protects starred bookmarks** - if you starred a podcasted bookmark, it won't be deleted
+- Deletes old un-starred podcasted bookmarks automatically
 - Sends notification if >10 cleaned
 - Keeps Karakeep database lean
-- Note: Bookmarks are automatically archived after podcast generation to keep main view clean
+- **Important:** Only deletes consumed/podcasted bookmarks - your reference library is safe
+
+---
+
+## Tagging Strategy
+
+### How Tags Work Together
+
+**Auto-tags (from Karakeep AI):**
+- `#ai` - AI and machine learning articles
+- `#finance` - Financial news and analysis
+- `#hometech` - Smart home, homelab, Docker, self-hosting
+- etc. (configured in Karakeep settings)
+
+**Manual tag (you decide):**
+- `#consume` - "I want this podcasted and then deleted"
+
+### Examples
+
+| Article | Auto Tags | You Add | What Happens |
+|---------|-----------|---------|--------------|
+| "New GPT-5 announcement" | `#ai` | `#consume` | → Podcasted in "Daily Digest - AI", then deleted after 7 days |
+| "How to configure SSH on Mac" | `#hometech` | (nothing) | → Stays in your Karakeep library forever |
+| "Stock market analysis today" | `#finance` | `#consume` | → Podcasted in "Daily Digest - Finance", then deleted after 7 days |
+| "Docker Compose best practices" | `#hometech` | (nothing) | → Stays in your Karakeep library forever |
+| "Understanding RAG systems" | `#ai` | `#consume` | → Podcasted in "Daily Digest - AI", then deleted after 7 days |
+| "n8n workflow examples" | `#hometech` | (nothing) | → Stays in your Karakeep library forever |
+
+### Decision Guide
+
+**Add `#consume` tag when:**
+- News articles (want to stay informed, but don't need to keep)
+- Product announcements (interesting now, not needed later)
+- Opinion pieces or analysis (consume once)
+- Time-sensitive content
+- Long-form articles you won't have time to read
+
+**Don't add `#consume` tag when:**
+- How-to guides or tutorials
+- Documentation or reference material
+- Troubleshooting guides
+- Code examples or snippets
+- Anything you might need to reference later
+
+### Quick Tagging on Mobile
+
+When saving from iOS Safari:
+1. Tap Share button
+2. Select Karakeep
+3. Karakeep AI auto-tags the article (`#ai`, `#hometech`, etc.)
+4. If you want it podcasted → tap to add `#consume` tag
+5. Save
+
+That's it! The n8n workflow handles everything else automatically.
+
+### Saving Podcasted Bookmarks
+
+If you listen to a podcast and decide you want to keep the article:
+1. Open Karakeep
+2. Go to **Archives** tab
+3. Find the bookmark (it will be tagged `#podcasted`)
+4. **Star/favorite it** ⭐
+5. The cleanup workflow will skip it - starred bookmarks are never deleted
 
 ---
 
@@ -87,10 +154,9 @@ Total articles: 3 | Duration: ~12 minutes
 
 ### User Experience
 1. While listening, tap episode to view show notes
-2. Click article link to open in browser
-3. If article worth deeper reading → Open Karakeep app → Star the bookmark
-4. Starred bookmarks saved from auto-deletion
-5. Unstarred bookmarks auto-delete after 7 days
+2. Click article link to open in browser if you want to read the full version
+3. Podcasted bookmarks are archived and auto-deleted after 7 days
+4. Your permanent bookmark library (reference articles, how-tos, etc.) stays untouched in Karakeep
 
 ---
 
@@ -805,10 +871,10 @@ docker exec alpine-utility chmod +x /tmp/copy-podcast.sh
 [Set Variables: Date, Timestamps]
     ↓
 [HTTP Request: GET Karakeep Bookmarks]
-    (Query bookmarks from last 24 hours)
+    (Query bookmarks with #consume tag, not archived)
     ↓
 [Filter Bookmarks]
-    (Exclude already podcasted, group by tag)
+    (Group by topic tag: #ai, #finance, #hometech, etc.)
     ↓
 [IF: Any bookmarks to process?]
     ├─ NO → [End: No podcasts needed]
@@ -856,11 +922,11 @@ docker exec alpine-utility chmod +x /tmp/copy-podcast.sh
                 POST /api/libraries/scan
                 (Triggers immediate library refresh)
                 ↓
-            [Tag Bookmarks as Podcasted]
-                (Add #podcasted tag to prevent reprocessing)
+            [Update Bookmark Tags]
+                (Remove #consume, add #podcasted and #podcasted-YYYY-MM-DD)
                 ↓
             [Archive Bookmark]
-                (Archive bookmark in Karakeep to keep main view clean)
+                (Archive bookmark in Karakeep - will be auto-deleted in 7 days)
                 ↓
 [End Loop]
     ↓
@@ -886,10 +952,10 @@ This workflow cleans up old archived bookmarks to prevent database clutter.
 [Set Variables: Calculate 7-day cutoff date]
     ↓
 [HTTP Request: GET Archived Bookmarks]
-    (archived=true, limit=100)
+    (archived=true, tags=podcasted, limit=100)
     ↓
-[Function: Filter old unstarred bookmarks]
-    (createdBefore=7daysago, starred=false)
+[Function: Filter old podcasted bookmarks]
+    (createdBefore=7daysago)
     ↓
 [IF: Any bookmarks to delete?]
     ├─ NO → [End: Nothing to clean]
@@ -912,10 +978,11 @@ This workflow cleans up old archived bookmarks to prevent database clutter.
 ```
 
 **Key Changes from Original Design:**
-- Now targets archived bookmarks instead of searching by "podcasted" tag
+- Only processes bookmarks tagged with `#consume` (opt-in model)
+- Targets archived bookmarks with `#podcasted` tag for cleanup
 - Works in conjunction with podcast workflow that archives bookmarks after processing
-- Keeps starred/favorited bookmarks even if archived
-- Only deletes bookmarks older than 7 days
+- Only deletes podcasted bookmarks older than 7 days
+- **Your reference library (bookmarks without `#consume` tag) is never touched**
 
 ---
 
@@ -1038,40 +1105,48 @@ chmod 755 /mnt/user-data/audiobookshelf/Daily-Digests
 # Set your API token
 TOKEN="your_karakeep_api_token"
 
-# Test: Get recent bookmarks
+# Test: Get bookmarks tagged for podcasting
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:3000/api/v1/bookmarks?limit=10
+  http://localhost:3000/api/v1/bookmarks?tags=consume&archived=false&limit=100
 
-# Test: Get bookmarks by tag
+# Test: Get bookmarks by topic tag
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:3000/api/v1/bookmarks?tags=ai
 
-# Test: Add tag to bookmark
+# Test: Update bookmark tags after podcasting (remove #consume, add #podcasted)
 curl -X PATCH \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"tags":["podcasted","podcasted-2024-12-04"]}' \
+  -d '{"tags":["ai","podcasted","podcasted-2024-12-04"]}' \
+  http://localhost:3000/api/v1/bookmarks/{bookmark_id}
+
+# Test: Archive bookmark after podcasting
+curl -X PATCH \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"archived":true}' \
   http://localhost:3000/api/v1/bookmarks/{bookmark_id}
 ```
 
 ### Manual Workflow Test
 
-1. Save 3-5 bookmarks in Karakeep (on a test topic like "test")
-2. Tag them manually with `#test`
+1. Save 3-5 bookmarks in Karakeep with different topics
+2. Tag 2-3 of them with `#consume` (leave others without it)
 3. Run podcast generation workflow manually in n8n
 4. Check for:
-   - MP3 file in AudioBookShelf directory
-   - Show notes .txt file created
-   - Bookmarks tagged with `#podcasted`
-   - AudioBookShelf shows new episode
+   - MP3 files in AudioBookShelf directory (only for `#consume` tagged items)
+   - Show notes .txt files created
+   - Bookmarks that had `#consume` are now tagged with `#podcasted` and archived
+   - Bookmarks without `#consume` are still untouched in your library
+   - AudioBookShelf shows new episodes
 
 ### Cleanup Test
 
-1. Create test bookmarks
-2. Tag them with `#podcasted` and old date
+1. Create test bookmarks with `#consume` and podcast them (will be archived)
+2. Manually edit their created date to be 8+ days ago
 3. Run cleanup workflow
-4. Verify bookmarks deleted
-5. Check starred bookmarks are NOT deleted
+4. Verify archived `#podcasted` bookmarks are deleted
+5. Check that your regular bookmarks (without `#consume` tag) are still in your library
 
 ---
 

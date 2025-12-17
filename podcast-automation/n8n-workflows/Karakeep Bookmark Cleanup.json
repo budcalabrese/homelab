@@ -15,30 +15,27 @@
       "name": "Schedule Daily at 3AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [250, 300]
+      "position": [
+        -1008,
+        112
+      ],
+      "id": "f33e0333-db35-4ab0-bbeb-d484b08b3dd1"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "cutoffDate",
-              "name": "sevenDaysAgo",
-              "value": "={{ $now.minus({ days: 7 }).toISO() }}",
-              "type": "string"
-            }
-          ]
-        },
         "options": {}
       },
       "name": "Calculate Cutoff Date",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.2,
-      "position": [450, 300]
+      "position": [
+        -800,
+        112
+      ],
+      "id": "c3c290c1-d2cc-46ee-a57c-ba7725bc91d7"
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "http://192.168.0.9:3000/api/v1/bookmarks",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -50,6 +47,10 @@
               "value": "true"
             },
             {
+              "name": "tags",
+              "value": "podcasted"
+            },
+            {
               "name": "limit",
               "value": "100"
             }
@@ -57,25 +58,33 @@
         },
         "options": {}
       },
-      "name": "Get Archived Bookmarks",
+      "name": "Get Archived Podcasted Bookmarks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [650, 300],
+      "position": [
+        -608,
+        112
+      ],
+      "id": "87231b0a-1caa-4aa6-b5f6-06b438934ba2",
       "credentials": {
         "httpHeaderAuth": {
           "id": "X2FyQ0AMsq7uEHhG",
-          "name": "Header Auth account"
+          "name": "Karakeep API"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Filter bookmarks for deletion:\n// - Archived in Karakeep\n// - Older than 7 days\n// - NOT starred/favourited\n\nconst sevenDaysAgo = new Date($input.first().json.sevenDaysAgo);\nconst bookmarks = $input.first().json.bookmarks || [];\n\nconst toDelete = bookmarks.filter(bookmark => {\n  const created = new Date(bookmark.createdAt);\n  const isOld = created < sevenDaysAgo;\n  const notStarred = !bookmark.favourited;\n  \n  return isOld && notStarred;\n});\n\nif (toDelete.length === 0) {\n  return [];\n}\n\nreturn toDelete.map(bookmark => ({\n  json: {\n    id: bookmark.id,\n    title: bookmark.title,\n    createdAt: bookmark.createdAt,\n    url: bookmark.url\n  }\n}));"
+        "jsCode": "// Filter bookmarks for deletion:\n// - Archived in Karakeep\n// - Tagged with #podcasted\n// - Older than 7 days\n// - NOT starred/favourited (safety check - starred bookmarks are protected)\n\nconst sevenDaysAgo = new Date($input.first().json.sevenDaysAgo);\nconst bookmarks = $input.first().json.bookmarks || [];\n\nconsole.log('Checking', bookmarks.length, 'archived #podcasted bookmarks for cleanup');\nconsole.log('Cutoff date:', sevenDaysAgo.toISOString());\n\nconst toDelete = bookmarks.filter(bookmark => {\n  const created = new Date(bookmark.createdAt);\n  const isOld = created < sevenDaysAgo;\n  const notStarred = !bookmark.favourited;  // Safety check - protect starred bookmarks\n  \n  if (isOld && !notStarred) {\n    console.log(`Protecting starred bookmark: \"${bookmark.title}\" (created ${bookmark.createdAt})`);\n  }\n  \n  return isOld && notStarred;\n});\n\nconsole.log('Bookmarks to delete:', toDelete.length);\n\nif (toDelete.length === 0) {\n  return [];\n}\n\nreturn toDelete.map(bookmark => ({\n  json: {\n    id: bookmark.id,\n    title: bookmark.title,\n    createdAt: bookmark.createdAt,\n    url: bookmark.url\n  }\n}));"
       },
-      "name": "Filter Old Unstarred",
+      "name": "Filter Old Unstarred Podcasted",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [
+        -400,
+        112
+      ],
+      "id": "4c4ac2a6-c82c-4ba2-bd34-2c6bc71e2080"
     },
     {
       "parameters": {
@@ -83,8 +92,7 @@
           "number": [
             {
               "value1": "={{ $json.length }}",
-              "operation": "larger",
-              "value2": 0
+              "operation": "larger"
             }
           ]
         }
@@ -92,14 +100,22 @@
       "name": "Any to Delete?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [
+        -208,
+        112
+      ],
+      "id": "bceb5ef6-e3ff-4415-a5f6-a9c8cc42dfcf"
     },
     {
       "parameters": {},
       "name": "Nothing to Clean",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1250, 200]
+      "position": [
+        0,
+        0
+      ],
+      "id": "22d4f02f-3613-4714-bfb8-d6278b0aca24"
     },
     {
       "parameters": {
@@ -108,7 +124,11 @@
       "name": "Log for Audit",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 400]
+      "position": [
+        0,
+        208
+      ],
+      "id": "73e40d53-b812-4721-a80b-a4b6df536dab"
     },
     {
       "parameters": {
@@ -121,11 +141,15 @@
       "name": "Delete Bookmark",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1450, 400],
+      "position": [
+        208,
+        208
+      ],
+      "id": "74471144-92ed-4767-9eaf-23c95292edc8",
       "credentials": {
         "httpHeaderAuth": {
           "id": "X2FyQ0AMsq7uEHhG",
-          "name": "Header Auth account"
+          "name": "Karakeep API"
         }
       }
     },
@@ -136,7 +160,11 @@
       "name": "Build Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1650, 400]
+      "position": [
+        400,
+        208
+      ],
+      "id": "e54aae9d-dde5-4c60-bef7-daaead89f771"
     },
     {
       "parameters": {
@@ -152,26 +180,25 @@
       "name": "Should Notify?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1850, 400]
+      "position": [
+        608,
+        208
+      ],
+      "id": "301dc5c8-6376-46d7-83b1-fe366b842af9"
     },
     {
       "parameters": {},
       "name": "Silent Complete",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2050, 300]
-    },
-    {
-      "parameters": {
-        "content": "={{ $json.message }}",
-        "options": {}
-      },
-      "name": "Log Notification",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [2050, 500]
+      "position": [
+        800,
+        112
+      ],
+      "id": "d98a23f9-d74a-40d3-a1d6-2c017a191143"
     }
   ],
+  "pinData": {},
   "connections": {
     "Schedule Daily at 3AM": {
       "main": [
@@ -188,25 +215,25 @@
       "main": [
         [
           {
-            "node": "Get Archived Bookmarks",
+            "node": "Get Archived Podcasted Bookmarks",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Archived Bookmarks": {
+    "Get Archived Podcasted Bookmarks": {
       "main": [
         [
           {
-            "node": "Filter Old Unstarred",
+            "node": "Filter Old Unstarred Podcasted",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter Old Unstarred": {
+    "Filter Old Unstarred Podcasted": {
       "main": [
         [
           {
@@ -276,23 +303,18 @@
             "type": "main",
             "index": 0
           }
-        ],
-        [
-          {
-            "node": "Log Notification",
-            "type": "main",
-            "index": 0
-          }
         ]
       ]
     }
   },
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 0,
-  "updatedAt": "2024-12-08T00:00:00.000Z",
-  "versionId": "1"
+  "versionId": "19930a93-94bb-42c9-a2ee-d015231d9a5d",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "id": "KwcclOB7n6VWoyCi",
+  "tags": []
 }
