@@ -1,0 +1,123 @@
+{
+  "name": "VictoriaLogs Daily Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Daily 8 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Daily security and network analysis at 8 PM"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9428/select/logsql/query",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"_time:24h | fields _time, _stream, log\"\n}"
+      },
+      "id": "fetch-logs-24h",
+      "name": "Fetch Last 24h Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "notes": "Get full day of logs from VictoriaLogs"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Comprehensive log analysis\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{ json: { logs: \"No logs found\", count: 0, summary: \"No data available\" } }];\n}\n\nconst logsData = items[0].json;\nconst logs = logsData.values || [];\n\n// Security metrics\nlet errorCount = 0;\nlet authFailures = [];\nlet securityAlerts = [];\n\n// Network metrics\nlet latencyIssues = [];\nlet connectionErrors = [];\nlet timeouts = [];\nlet containerRestarts = [];\nlet diskWarnings = [];\nlet memoryWarnings = [];\n\n// Container health\nconst containerActivity = {};\n\nlogs.forEach((entry) => {\n  const timestamp = entry[0];\n  const stream = entry[1];\n  const message = entry[2];\n  const lowerMsg = message.toLowerCase();\n  \n  // Track container activity\n  if (!containerActivity[stream]) {\n    containerActivity[stream] = { errors: 0, total: 0 };\n  }\n  containerActivity[stream].total++;\n  \n  // SECURITY ANALYSIS\n  if (lowerMsg.includes('error') || lowerMsg.includes('fail')) {\n    errorCount++;\n    containerActivity[stream].errors++;\n  }\n  \n  if (lowerMsg.includes('auth') && (lowerMsg.includes('fail') || lowerMsg.includes('denied') || lowerMsg.includes('unauthorized'))) {\n    authFailures.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  if (lowerMsg.includes('attack') || lowerMsg.includes('malicious') || lowerMsg.includes('exploit') || lowerMsg.includes('intrusion')) {\n    securityAlerts.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  // NETWORK ANALYSIS\n  if (lowerMsg.includes('latency') || lowerMsg.includes('slow')) {\n    latencyIssues.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  if (lowerMsg.includes('connection') && (lowerMsg.includes('refused') || lowerMsg.includes('failed') || lowerMsg.includes('reset'))) {\n    connectionErrors.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  if (lowerMsg.includes('timeout') || lowerMsg.includes('timed out')) {\n    timeouts.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  if (lowerMsg.includes('restart') || lowerMsg.includes('exited') || lowerMsg.includes('died')) {\n    containerRestarts.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  if (lowerMsg.includes('disk') && (lowerMsg.includes('full') || lowerMsg.includes('no space'))) {\n    diskWarnings.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n  \n  if (lowerMsg.includes('oom') || lowerMsg.includes('out of memory')) {\n    memoryWarnings.push({ time: timestamp, source: stream, message: message.substring(0, 200) });\n  }\n});\n\n// Find containers with high error rates\nconst problematicContainers = Object.entries(containerActivity)\n  .filter(([name, stats]) => stats.errors > 10 || (stats.total > 0 && stats.errors / stats.total > 0.1))\n  .map(([name, stats]) => ({ name, errors: stats.errors, total: stats.total, rate: (stats.errors / stats.total * 100).toFixed(1) }))\n  .sort((a, b) => b.errors - a.errors)\n  .slice(0, 5);\n\n// Build comprehensive summary for AI\nconst summary = `HOMELAB DAILY DIGEST - ${new Date().toLocaleDateString()}\n\n📊 OVERVIEW\nTotal Logs Analyzed: ${logs.length}\nTotal Errors: ${errorCount}\nUnique Containers: ${Object.keys(containerActivity).length}\n\n🔒 SECURITY SUMMARY\n- Authentication Failures: ${authFailures.length}\n- Security Alerts: ${securityAlerts.length}\n\n🌐 NETWORK SUMMARY\n- Latency Issues: ${latencyIssues.length}\n- Connection Errors: ${connectionErrors.length}\n- Timeouts: ${timeouts.length}\n- Container Restarts: ${containerRestarts.length}\n\n💾 RESOURCE WARNINGS\n- Disk Warnings: ${diskWarnings.length}\n- Memory Warnings: ${memoryWarnings.length}\n\n⚠️ PROBLEMATIC CONTAINERS (Top 5 by Error Rate):\n${problematicContainers.map(c => `- ${c.name}: ${c.errors} errors / ${c.total} logs (${c.rate}%)`).join('\\n') || 'None detected'}\n\n🔍 SECURITY DETAILS:\n\nAuthentication Failures (last 10):\n${authFailures.slice(-10).map(i => `[${i.time}] ${i.source}: ${i.message}`).join('\\n') || 'None'}\n\nSecurity Alerts:\n${securityAlerts.map(i => `[${i.time}] ${i.source}: ${i.message}`).join('\\n') || 'None'}\n\n🌐 NETWORK DETAILS:\n\nLatency Issues (last 5):\n${latencyIssues.slice(-5).map(i => `[${i.time}] ${i.source}: ${i.message}`).join('\\n') || 'None'}\n\nConnection Errors (last 5):\n${connectionErrors.slice(-5).map(i => `[${i.time}] ${i.source}: ${i.message}`).join('\\n') || 'None'}\n\nContainer Restarts:\n${containerRestarts.map(i => `[${i.time}] ${i.source}: ${i.message}`).join('\\n') || 'None'}\n\nResource Warnings:\n${[...diskWarnings, ...memoryWarnings].map(i => `[${i.time}] ${i.source}: ${i.message}`).join('\\n') || 'None'}\n`;\n\nreturn [{\n  json: {\n    summary: summary,\n    totalLogs: logs.length,\n    security: {\n      errors: errorCount,\n      authFailures: authFailures.length,\n      securityAlerts: securityAlerts.length,\n      authDetails: authFailures.slice(-10),\n      alertDetails: securityAlerts\n    },\n    network: {\n      latency: latencyIssues.length,\n      connections: connectionErrors.length,\n      timeouts: timeouts.length,\n      restarts: containerRestarts.length,\n      disk: diskWarnings.length,\n      memory: memoryWarnings.length\n    },\n    problematicContainers: problematicContainers,\n    criticalIssues: authFailures.length > 5 || securityAlerts.length > 0 || containerRestarts.length > 3 || diskWarnings.length > 0 || memoryWarnings.length > 0\n  }\n}];"
+      },
+      "id": "analyze-all-logs",
+      "name": "Analyze Security & Network",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "notes": "Comprehensive analysis of all log data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5:7b\",\n  \"prompt\": \"You are a homelab infrastructure analyst. Analyze this 24-hour digest and provide a comprehensive daily report.\\n\\n{{ $json.summary }}\\n\\nProvide a well-structured daily digest email:\\n\\n📋 EXECUTIVE SUMMARY\\n(2-3 sentences: overall health, key concerns, action needed?)\\n\\n🔒 SECURITY ASSESSMENT\\nThreat Level: [Low/Medium/High/Critical]\\n- Key Findings (top 3)\\n- Authentication Security Status\\n- Recommended Actions\\n\\n🌐 NETWORK HEALTH\\nStatus: [Excellent/Good/Fair/Poor/Critical]\\n- Performance Assessment\\n- Latency Analysis\\n- Connection Reliability\\n- Recommended Actions\\n\\n🐳 CONTAINER HEALTH\\n- Problematic Containers (if any)\\n- Restart Analysis\\n- Resource Concerns\\n\\n💡 RECOMMENDED ACTIONS\\n(Prioritized list, max 5, specific and actionable)\\n\\n📈 TRENDS & OBSERVATIONS\\n(Any patterns or trends worth noting)\\n\\n---\\nBe concise, actionable, and focus on what matters. Skip sections with no issues.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_ctx\": 4096\n  }\n}"
+      },
+      "id": "ollama-digest-analysis",
+      "name": "Ollama Daily Digest Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "notes": "AI analysis for comprehensive digest"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst ollamaResponse = items[0].json;\nconst digestData = items[1].json;\n\nconst analysis = ollamaResponse.response || \"Analysis failed\";\n\n// Extract threat and health levels\nconst threatMatch = analysis.match(/Threat Level[:\\s]*(Low|Medium|High|Critical)/i);\nconst threatLevel = threatMatch ? threatMatch[1] : \"Unknown\";\n\nconst healthMatch = analysis.match(/Status[:\\s]*(Excellent|Good|Fair|Poor|Critical)/i);\nconst networkHealth = healthMatch ? healthMatch[1] : \"Unknown\";\n\n// Format email body\nconst emailSubject = digestData.criticalIssues \n  ? `🚨 Homelab Daily Digest - Action Required (${new Date().toLocaleDateString()})`\n  : `✅ Homelab Daily Digest - ${new Date().toLocaleDateString()}`;\n\nconst emailBody = `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .header { background: #2c3e50; color: white; padding: 20px; }\n    .stats { background: #ecf0f1; padding: 15px; margin: 20px 0; border-radius: 5px; }\n    .critical { background: #e74c3c; color: white; padding: 10px; margin: 10px 0; border-radius: 3px; }\n    .warning { background: #f39c12; color: white; padding: 10px; margin: 10px 0; border-radius: 3px; }\n    .good { background: #27ae60; color: white; padding: 10px; margin: 10px 0; border-radius: 3px; }\n    .section { margin: 20px 0; }\n    pre { background: #f4f4f4; padding: 10px; border-radius: 3px; overflow-x: auto; }\n  </style>\n</head>\n<body>\n  <div class=\"header\">\n    <h1>🏠 Homelab Daily Digest</h1>\n    <p>${new Date().toLocaleDateString()} - 24 Hour Report</p>\n  </div>\n  \n  <div class=\"stats\">\n    <h3>📊 Quick Stats</h3>\n    <ul>\n      <li><strong>Total Logs:</strong> ${digestData.totalLogs}</li>\n      <li><strong>Security Threat Level:</strong> ${threatLevel}</li>\n      <li><strong>Network Health:</strong> ${networkHealth}</li>\n      <li><strong>Auth Failures:</strong> ${digestData.security.authFailures}</li>\n      <li><strong>Container Restarts:</strong> ${digestData.network.restarts}</li>\n    </ul>\n  </div>\n  \n  ${digestData.criticalIssues ? '<div class=\"critical\"><strong>⚠️ CRITICAL ISSUES DETECTED - Review Required</strong></div>' : '<div class=\"good\"><strong>✅ No Critical Issues</strong></div>'}\n  \n  <div class=\"section\">\n    <h2>🤖 AI Analysis</h2>\n    <pre>${analysis}</pre>\n  </div>\n  \n  ${digestData.problematicContainers.length > 0 ? `\n  <div class=\"section\">\n    <h3>🐳 Containers Requiring Attention</h3>\n    <ul>\n      ${digestData.problematicContainers.map(c => `<li><strong>${c.name}</strong>: ${c.errors} errors (${c.rate}% error rate)</li>`).join('')}\n    </ul>\n  </div>\n  ` : ''}\n  \n  <div class=\"section\">\n    <p><em>Generated by VictoriaLogs + Ollama AI Analysis</em></p>\n  </div>\n</body>\n</html>`;\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    date: new Date().toLocaleDateString(),\n    threatLevel: threatLevel,\n    networkHealth: networkHealth,\n    emailSubject: emailSubject,\n    emailBody: emailBody,\n    plainTextSummary: analysis,\n    stats: {\n      totalLogs: digestData.totalLogs,\n      authFailures: digestData.security.authFailures,\n      securityAlerts: digestData.security.securityAlerts,\n      networkIssues: digestData.network.connections + digestData.network.timeouts,\n      containerRestarts: digestData.network.restarts,\n      resourceWarnings: digestData.network.disk + digestData.network.memory\n    },\n    criticalIssues: digestData.criticalIssues,\n    requiresAction: digestData.criticalIssues || threatLevel === 'High' || threatLevel === 'Critical'\n  }\n}];"
+      },
+      "id": "format-email-digest",
+      "name": "Format Email Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "notes": "Create formatted HTML email"
+    },
+    {
+      "parameters": {
+        "message": "=📧 Daily Digest Email Ready\\n\\nSubject: {{ $json.emailSubject }}\\n\\nThreat Level: {{ $json.threatLevel }}\\nNetwork Health: {{ $json.networkHealth }}\\nCritical Issues: {{ $json.criticalIssues ? 'YES' : 'NO' }}\\n\\nStats:\\n- Total Logs: {{ $json.stats.totalLogs }}\\n- Auth Failures: {{ $json.stats.authFailures }}\\n- Network Issues: {{ $json.stats.networkIssues }}\\n- Container Restarts: {{ $json.stats.containerRestarts }}\\n\\nHTML email body is ready to send.\\nReplace this node with an email sender (Gmail, SendGrid, etc.)"
+      },
+      "id": "send-email",
+      "name": "Send Email (Replace This)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "notes": "REPLACE WITH: Email/Discord/Slack node\\n\\nFor email: use {{ $json.emailSubject }} and {{ $json.emailBody }}"
+    }
+  ],
+  "connections": {
+    "Schedule Daily 8 PM": {
+      "main": [[{ "node": "Fetch Last 24h Logs", "type": "main", "index": 0 }]]
+    },
+    "Fetch Last 24h Logs": {
+      "main": [[{ "node": "Analyze Security & Network", "type": "main", "index": 0 }]]
+    },
+    "Analyze Security & Network": {
+      "main": [[{ "node": "Ollama Daily Digest Analysis", "type": "main", "index": 0 }]]
+    },
+    "Ollama Daily Digest Analysis": {
+      "main": [[{ "node": "Format Email Digest", "type": "main", "index": 0 }]]
+    },
+    "Format Email Digest": {
+      "main": [[{ "node": "Send Email (Replace This)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "victoria-logs-daily-digest",
+  "meta": {
+    "instanceId": "your-instance-id-here"
+  },
+  "tags": [
+    { "name": "security", "id": "security" },
+    { "name": "monitoring", "id": "monitoring" },
+    { "name": "daily-digest", "id": "daily-digest" }
+  ]
+}

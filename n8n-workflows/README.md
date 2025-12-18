@@ -4,6 +4,41 @@ This directory contains all n8n workflow JSON files for homelab automation.
 
 ## Workflows
 
+### VictoriaLogs Monitoring
+
+**Files:**
+- `victoria-logs-daily-digest.json` - Daily network health and security report
+
+#### Daily Network Health Report
+
+**Schedule**: Daily at 8:00 PM (`0 20 * * *`)
+
+**What it does**:
+1. Fetches last 24 hours of logs from VictoriaLogs
+2. Analyzes security threats (auth failures, security alerts, errors)
+3. Analyzes network health (latency, connection errors, timeouts)
+4. Identifies problematic containers (high error rates, restarts)
+5. Checks resource warnings (disk space, memory issues)
+6. Sends comprehensive analysis to Ollama (Qwen2.5)
+7. Generates formatted HTML email digest
+8. Sends daily report via email
+
+**Output**:
+- Threat Level assessment (Low/Medium/High/Critical)
+- Network Health status (Excellent/Good/Fair/Poor/Critical)
+- Container health analysis
+- Prioritized action items
+- Trend observations
+
+**Email includes**:
+- 24-hour statistics
+- AI-powered security assessment
+- Network performance analysis
+- Problematic containers requiring attention
+- Recommended actions
+
+---
+
 ### Karakeep Podcast Automation
 
 **Files:**
@@ -119,7 +154,23 @@ Budget export scripts require:
 ✅ Homelab services deployed
 ✅ n8n running at http://localhost:5678
 
-### 1. Import Workflows into n8n
+### 1. Start VictoriaLogs (For Monitoring Workflows)
+
+VictoriaLogs is already configured in compose.yml. Start it:
+
+```bash
+cd /Users/bud/home_space/homelab
+docker compose up -d victoria-logs
+```
+
+Verify it's running:
+```bash
+curl http://localhost:9428/health
+```
+
+VictoriaLogs will automatically collect logs from Docker containers.
+
+### 2. Import Workflows into n8n
 
 1. **Access n8n**: http://localhost:5678
 2. **Import workflows**:
@@ -127,7 +178,7 @@ Budget export scripts require:
    - Select each `.json` file from this directory
    - Click "Import"
 
-### 2. Configure Credentials
+### 3. Configure Credentials
 
 #### Karakeep Workflows
 
@@ -158,7 +209,31 @@ Both podcast workflows require a Karakeep API credential:
 
 No credentials required - uses docker exec to run scripts.
 
-### 3. Test Workflows
+#### VictoriaLogs Monitoring Workflow
+
+No credentials required - connects to local VictoriaLogs and Ollama.
+
+**Note:** You must have Ollama running locally with qwen2.5:7b model:
+```bash
+ollama pull qwen2.5:7b
+```
+
+**Email Setup (Optional but Recommended):**
+
+Replace the "Send Email (Replace This)" noOp node with an actual email sender:
+
+**Option 1: Gmail (via n8n Gmail node)**
+1. Add Gmail credentials in n8n
+2. Replace noOp with Gmail node
+3. Use `{{ $json.emailSubject }}` for subject
+4. Use `{{ $json.emailBody }}` for HTML body
+
+**Option 2: SendGrid/SMTP**
+1. Add SMTP credentials
+2. Replace noOp with Send Email node
+3. Same subject/body variables
+
+### 4. Test Workflows
 
 #### Test Podcast Generation
 
