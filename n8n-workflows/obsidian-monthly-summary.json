@@ -1,0 +1,195 @@
+{
+  "name": "Obsidian Monthly Summary Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 23 L * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule: Last Day of Month at 11 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Triggers on the last day of each month"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get current month and year\nconst now = new Date();\nconst year = now.getFullYear();\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst monthName = now.toLocaleString('default', { month: 'long' });\n\nreturn [{\n  json: {\n    year: year,\n    month: month,\n    monthName: monthName,\n    summaryFileName: `${year}-${month}-Summary.md`,\n    weeklyNotesPath: '/Users/bud/home_space/obsidian-vault/Weekly Notes',\n    outputPath: '/Users/bud/home_space/obsidian-vault/Monthly Summaries'\n  }\n}];"
+      },
+      "id": "calculate-dates",
+      "name": "Calculate Month Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Determine current month and file paths"
+    },
+    {
+      "parameters": {
+        "command": "=ls -1 \"{{ $json.weeklyNotesPath }}\"/Week\\ of\\ {{ $json.month }}-*.md 2>/dev/null || echo \"\"",
+        "options": {}
+      },
+      "id": "list-weekly-files",
+      "name": "List Weekly Note Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "notes": "Find all weekly notes from current month"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst monthData = items[0].json;\nconst fileListOutput = items[1].json.stdout;\n\n// Parse file list\nconst files = fileListOutput.trim().split('\\n').filter(f => f.length > 0);\n\nif (files.length === 0) {\n  return [{\n    json: {\n      error: true,\n      message: `No weekly notes found for ${monthData.monthName} ${monthData.year}`,\n      monthData: monthData\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    error: false,\n    files: files,\n    fileCount: files.length,\n    monthData: monthData\n  }\n}];"
+      },
+      "id": "parse-file-list",
+      "name": "Parse Weekly Note Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notes": "Process list of weekly note files"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "check-files-exist",
+      "name": "Files Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "notes": "Check if any weekly notes exist"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst data = items[0].json;\nconst files = data.files;\n\n// Read all weekly note files\nconst fs = require('fs');\nlet combinedContent = '';\n\nfiles.forEach(file => {\n  try {\n    const content = fs.readFileSync(file, 'utf8');\n    combinedContent += `\\n\\n---\\n\\n${content}`;\n  } catch (err) {\n    console.log(`Error reading ${file}: ${err}`);\n  }\n});\n\nreturn [{\n  json: {\n    combinedContent: combinedContent,\n    monthData: data.monthData,\n    weekCount: files.length\n  }\n}];"
+      },
+      "id": "read-weekly-notes",
+      "name": "Read All Weekly Notes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "notes": "Combine all weekly note content"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5:7b\",\n  \"prompt\": \"You are analyzing monthly productivity notes to create a comprehensive summary. Review the following weekly notes from {{ $json.monthData.monthName }} {{ $json.monthData.year }} and create a structured monthly summary.\\n\\nWEEKLY NOTES:\\n{{ $json.combinedContent }}\\n\\nCreate a monthly summary with these sections:\\n\\n# Monthly Summary: {{ $json.monthData.monthName }} {{ $json.monthData.year }}\\n\\n## Overview\\n(2-3 sentences summarizing the month)\\n\\n## Key Accomplishments\\n(Bullet list of major wins and completed projects)\\n\\n## Work Highlights\\n(Important work projects, deployments, and achievements)\\n\\n## Personal & Homelab\\n(Personal projects, learning, and homelab improvements)\\n\\n## Challenges & Learnings\\n(Issues faced, lessons learned, areas for improvement)\\n\\n## Metrics\\n- Weeks tracked: {{ $json.weekCount }}\\n- PTO days: (count from notes)\\n- Major projects: (count significant items)\\n\\n## Looking Ahead\\n(Carry-over items and focus for next month)\\n\\nBe specific, use actual project names and details from the notes. Focus on meaningful accomplishments.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_ctx\": 8192\n  }\n}"
+      },
+      "id": "ollama-summarize",
+      "name": "Ollama: Generate Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "notes": "AI summarization using qwen2.5:7b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst ollamaResponse = items[0].json;\nconst monthData = items[1].json.monthData;\n\nconst summary = ollamaResponse.response || \"Summary generation failed\";\n\n// Build the final markdown file\nconst finalContent = `${summary}\\n\\n---\\n\\n## Metadata\\n\\n- **Generated**: ${new Date().toISOString()}\\n- **Source**: ${items[1].json.weekCount} weekly notes\\n- **AI Model**: qwen2.5:7b via Ollama\\n\\n---\\ntags: #monthlysummary #${monthData.year} #${monthData.monthName.toLowerCase()}`;\n\nreturn [{\n  json: {\n    content: finalContent,\n    fileName: monthData.summaryFileName,\n    outputPath: monthData.outputPath,\n    fullPath: `${monthData.outputPath}/${monthData.summaryFileName}`,\n    monthName: monthData.monthName,\n    year: monthData.year\n  }\n}];"
+      },
+      "id": "format-summary",
+      "name": "Format Monthly Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200],
+      "notes": "Create final markdown file"
+    },
+    {
+      "parameters": {
+        "command": "=cat > \"{{ $json.fullPath }}\" << 'EOFMARKER'\\n{{ $json.content }}\\nEOFMARKER",
+        "options": {}
+      },
+      "id": "write-summary-file",
+      "name": "Write Summary File",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2000, 200],
+      "notes": "Save monthly summary to disk"
+    },
+    {
+      "parameters": {
+        "message": "=✅ Monthly Summary Generated!\\n\\nMonth: {{ $json.monthName }} {{ $json.year }}\\nFile: {{ $json.fileName }}\\nLocation: Monthly Summaries/\\n\\nSummary created from {{ $json.weekCount }} weekly notes."
+      },
+      "id": "success-notification",
+      "name": "Success Notification",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2220, 200],
+      "notes": "Replace with Discord/Slack/Email node"
+    },
+    {
+      "parameters": {
+        "message": "=⚠️ No weekly notes found for {{ $json.monthData.monthName }} {{ $json.monthData.year }}\\n\\nSkipping monthly summary generation."
+      },
+      "id": "no-files-notification",
+      "name": "No Files Notification",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "notes": "Optional: Alert when no notes found"
+    }
+  ],
+  "connections": {
+    "Schedule: Last Day of Month at 11 PM": {
+      "main": [[{ "node": "Calculate Month Details", "type": "main", "index": 0 }]]
+    },
+    "Calculate Month Details": {
+      "main": [[{ "node": "List Weekly Note Files", "type": "main", "index": 0 }]]
+    },
+    "List Weekly Note Files": {
+      "main": [[{ "node": "Parse Weekly Note Files", "type": "main", "index": 0 }]]
+    },
+    "Parse Weekly Note Files": {
+      "main": [[{ "node": "Files Found?", "type": "main", "index": 0 }]]
+    },
+    "Files Found?": {
+      "main": [
+        [{ "node": "Read All Weekly Notes", "type": "main", "index": 0 }],
+        [{ "node": "No Files Notification", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read All Weekly Notes": {
+      "main": [[{ "node": "Ollama: Generate Summary", "type": "main", "index": 0 }]]
+    },
+    "Ollama: Generate Summary": {
+      "main": [[{ "node": "Format Monthly Summary", "type": "main", "index": 0 }]]
+    },
+    "Format Monthly Summary": {
+      "main": [[{ "node": "Write Summary File", "type": "main", "index": 0 }]]
+    },
+    "Write Summary File": {
+      "main": [[{ "node": "Success Notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "obsidian-monthly-summary",
+  "meta": {
+    "instanceId": "your-instance-id-here"
+  },
+  "tags": [
+    { "name": "obsidian", "id": "obsidian" },
+    { "name": "automation", "id": "automation" },
+    { "name": "summary", "id": "summary" }
+  ]
+}
