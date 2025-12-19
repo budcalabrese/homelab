@@ -110,6 +110,7 @@ services:
     volumes:
       - /Volumes/docker/container_configs/n8n:/home/node/.n8n
       - /var/run/docker.sock:/var/run/docker.sock
+      - /Users/bud/home_space/obsidian-vault:/data/obsidian-vault
     environment:
       # Server Configuration
       - N8N_HOST=localhost
@@ -530,6 +531,8 @@ services:
       - /Volumes/docker/container_configs/budget-dashboard/app-data:/mnt/budget-dashboard:ro
       - /Volumes/docker/container_configs/budget-dashboard-gf/app-data:/mnt/budget-dashboard-gf:ro
       - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
+      # Obsidian vault for monthly summary generation
+      - /Users/bud/home_space/obsidian-vault:/mnt/obsidian-vault
     ports:
       - "2223:22"
     restart: unless-stopped

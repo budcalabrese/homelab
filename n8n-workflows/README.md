@@ -153,14 +153,14 @@ Budget export scripts require:
 
 #### How It Works
 
-This workflow automatically creates a comprehensive monthly summary by analyzing all weekly notes from the current month using AI.
+This workflow automatically creates a comprehensive monthly summary by analyzing all weekly notes from the **previous month** using AI.
 
-**Schedule**: Monthly, last day at 11:00 PM (`0 23 L * *`)
+**Schedule**: Monthly, 1st at 11:00 PM (`0 23 1 * *`)
 
 **What it does**:
-1. Calculates current month and year
-2. Lists all weekly note files from current month (e.g., `Week of 12-*.md`)
-3. Reads and combines content from all weekly notes
+1. Calculates previous month and year (since running on 1st to summarize last month)
+2. Lists all weekly note files from previous month via SSH to alpine-utility (e.g., `Week-12-*.md`)
+3. Reads and combines content from all weekly notes via SSH
 4. Sends combined content to Ollama (qwen2.5:7b) for AI summarization
 5. Generates structured markdown with:
    - Overview (2-3 sentence month summary)
@@ -171,18 +171,22 @@ This workflow automatically creates a comprehensive monthly summary by analyzing
    - Metrics (weeks tracked, PTO days, major projects)
    - Looking ahead (carry-over items)
 6. Adds metadata (generation date, source count, AI model)
-7. Saves to `obsidian-vault/Monthly Summaries/YYYY-MM-Summary.md`
+7. Saves to `obsidian-vault/Monthly Summaries/Summary-MM-YY.md` via SSH
 
 **Output**:
-- Monthly summary markdown file
+- Monthly summary markdown file (e.g., `Summary-11-25.md` for November 2025)
 - Tagged with `#monthlysummary #year #monthname`
 - Metadata section with generation details
 
 **Dependencies**:
 - Obsidian weekly notes in `obsidian-vault/Weekly Notes/`
-- Weekly note naming: `Week of MM-DD-YYYY.md`
+- Weekly note naming: `Week-MM-DD-YY.md` (e.g., `Week-12-08-25.md`)
 - Ollama running with qwen2.5:7b model
-- Writable `obsidian-vault/Monthly Summaries/` directory
+- alpine-utility container with:
+  - obsidian-vault mounted at `/mnt/obsidian-vault`
+  - SSH server running on port 2223
+  - Helper script: `/config/scripts/obsidian-monthly-summary.sh`
+- n8n with SSH credentials configured for alpine-utility
 
 **AI Prompt Features**:
 - Uses temperature 0.3 for consistent, focused summaries
@@ -257,9 +261,25 @@ Both podcast workflows require a Karakeep API credential:
    - For nodes that say "Select Credential", choose "Karakeep API"
    - Save workflow
 
-#### Budget Export Workflows
+#### SSH Credentials (Budget Export & Obsidian Summary Workflows)
 
-No credentials required - uses docker exec to run scripts.
+Both the Budget Export and Obsidian Monthly Summary workflows use SSH to connect to alpine-utility. You need to configure SSH credentials once in n8n.
+
+**Setup SSH Credentials**:
+
+1. **In n8n, go to Settings → Credentials**
+2. **Click "Add Credential"**
+3. **Select "SSH (Private Key)"**
+4. **Configure as follows**:
+   - **Name**: `Alpine Utility SSH`
+   - **Host**: `alpine-utility` (Docker service name)
+   - **Port**: `2223`
+   - **Username**: `root`
+   - **Private Key**: Paste the private key that corresponds to the public key in `/Volumes/docker/container_configs/alpine-utility/ssh/authorized_keys`
+   - **Passphrase**: Leave blank (if your key doesn't have one)
+5. **Click "Save"**
+
+**Note**: alpine-utility already has SSH configured on port 2223. The authorized_keys file is managed in the alpine-utility configuration.
 
 #### VictoriaLogs Monitoring Workflow
 
@@ -272,55 +292,75 @@ ollama pull qwen2.5:7b
 
 #### Obsidian Monthly Summary Workflow
 
-No credentials required - reads from local filesystem and uses local Ollama.
+Uses SSH credentials configured above (Alpine Utility SSH).
 
 **Requirements:**
 - Ollama running with qwen2.5:7b model (same as above)
-- Weekly notes in `obsidian-vault/Weekly Notes/` with format: `Week of MM-DD-YYYY.md`
-- Writable `obsidian-vault/Monthly Summaries/` directory
+- Weekly notes in `obsidian-vault/Weekly Notes/` with format: `Week-MM-DD-YY.md`
+- alpine-utility container with:
+  - obsidian-vault mounted at `/mnt/obsidian-vault`
+  - Helper script at `/config/scripts/obsidian-monthly-summary.sh` (already configured)
+  - SSH access configured (already configured)
+
+**Verify alpine-utility volume mount:**
+
+Ensure this volume is in your `compose.yml`:
+
+```yaml
+alpine-utility:
+  volumes:
+    # ... existing volumes ...
+    - /Users/bud/home_space/obsidian-vault:/mnt/obsidian-vault:rw
+```
+
+If added, restart alpine-utility:
+```bash
+docker compose up -d alpine-utility
+```
+
+**Assign SSH Credentials**:
+- Open the "Obsidian Monthly Summary Generator" workflow
+- For each SSH node, ensure "Alpine Utility SSH" credential is selected
+- Save workflow
 
 **Optional Notifications:**
 Replace the "Success Notification" and "No Files Notification" noOp nodes with actual notification services (Discord, Slack, Email) if desired.
-
-**Email Setup (Optional but Recommended):**
-
-Replace the "Send Email (Replace This)" noOp node with an actual email sender:
-
-**Option 1: Gmail (via n8n Gmail node)**
-1. Add Gmail credentials in n8n
-2. Replace noOp with Gmail node
-3. Use `{{ $json.emailSubject }}` for subject
-4. Use `{{ $json.emailBody }}` for HTML body
-
-**Option 2: SendGrid/SMTP**
-1. Add SMTP credentials
-2. Replace noOp with Send Email node
-3. Same subject/body variables
 
 ### 4. Test Workflows
 
 #### Test Obsidian Monthly Summary
 
-1. **Verify weekly notes exist**:
+1. **Verify SSH credentials are configured**:
+   - In n8n, check that "Alpine Utility SSH" credential exists
+   - Test SSH connection: Open workflow and click "Test Credential" on any SSH node
+
+2. **Verify weekly notes exist**:
    ```bash
    ls -la /Users/bud/home_space/obsidian-vault/Weekly\ Notes/
    ```
-   - Should see files like `Week of 12-15-2025.md`
+   - Should see files like `Week-12-15-25.md`
 
-2. **Run workflow manually**:
+3. **Verify helper script exists in alpine-utility**:
+   ```bash
+   docker exec alpine-utility ls -la /config/scripts/obsidian-monthly-summary.sh
+   ```
+   - Should show the script with execute permissions
+
+4. **Run workflow manually**:
    - Open "Obsidian Monthly Summary Generator" workflow
+   - Ensure "Alpine Utility SSH" is selected for all SSH nodes
    - Click "Execute Workflow"
    - Watch execution flow
 
-3. **Verify results**:
+5. **Verify results**:
    ```bash
    ls -la /Users/bud/home_space/obsidian-vault/Monthly\ Summaries/
    ```
-   - Should see `YYYY-MM-Summary.md` file
+   - Should see `Summary-MM-YY.md` file (e.g., `Summary-11-25.md`)
    - Open file to verify AI-generated content
    - Check metadata section at bottom
 
-**Note:** This workflow is designed to run at end of month, but you can test it anytime by manually executing. It will summarize all weekly notes from the current month.
+**Note:** This workflow runs on the 1st to summarize the **previous month**. When testing manually, it will calculate the previous month automatically. For example, if you test on Dec 19, it will try to summarize November's notes.
 
 #### Test Podcast Generation
 

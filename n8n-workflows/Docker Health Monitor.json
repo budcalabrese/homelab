@@ -1,0 +1,188 @@
+{
+  "name": "Docker Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e38ed0fb-074e-4f2d-a28f-b47ee9d22df0",
+      "notes": "Runs daily at 9 AM"
+    },
+    {
+      "parameters": {
+        "command": "/scripts/docker-monitor.sh"
+      },
+      "name": "SSH - Run Monitor Script",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "cd0319ac-1859-4b55-b6af-3a9248f66806",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      },
+      "notes": "Executes the monitoring script via SSH"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the JSON output from the monitoring script\nconst data = JSON.parse($input.first().json.stdout);\n\n// Find containers with issues\nconst issues = [];\nconst stopped = [];\n\nfor (const container of data.containers) {\n  // Check for stopped containers\n  if (container.status !== 'running') {\n    stopped.push(container.name);\n  }\n  \n  // Check for errors\n  if (container.errors && container.errors.trim() !== '') {\n    issues.push({\n      name: container.name,\n      type: 'error',\n      details: container.errors\n    });\n  }\n  \n  // Check for unhealthy containers\n  if (container.health === 'unhealthy') {\n    issues.push({\n      name: container.name,\n      type: 'unhealthy',\n      details: 'Container health check failing'\n    });\n  }\n  \n  // Check for excessive restarts\n  if (container.restarts > 5) {\n    issues.push({\n      name: container.name,\n      type: 'restarts',\n      details: `Container has restarted ${container.restarts} times`\n    });\n  }\n}\n\n// Build HTML email content\nlet html = '<h2>Docker Health Report</h2>';\nhtml += `<p><strong>Report Time:</strong> ${data.timestamp}</p>`;\nhtml += `<p><strong>Summary:</strong> ${data.summary.running}/${data.summary.total} containers running</p>`;\n\nif (stopped.length > 0) {\n  html += '<h3 style=\"color: orange;\">⚠️ Stopped Containers</h3><ul>';\n  stopped.forEach(name => {\n    html += `<li>${name}</li>`;\n  });\n  html += '</ul>';\n}\n\nif (issues.length > 0) {\n  html += '<h3 style=\"color: red;\">🚨 Issues Detected</h3>';\n  issues.forEach(issue => {\n    html += `<div style=\"border: 1px solid #ddd; padding: 10px; margin: 10px 0;\">`;\n    html += `<strong>${issue.name}</strong> - ${issue.type}<br>`;\n    html += `<pre style=\"background: #f5f5f5; padding: 5px;\">${issue.details}</pre>`;\n    html += `</div>`;\n  });\n} else {\n  html += '<h3 style=\"color: green;\">✅ All Systems Healthy</h3>';\n}\n\nhtml += '<h3>All Containers</h3><table border=\"1\" cellpadding=\"5\" style=\"border-collapse: collapse;\">';\nhtml += '<tr><th>Container</th><th>Status</th><th>Health</th><th>Restarts</th></tr>';\n\nfor (const container of data.containers) {\n  const statusColor = container.status === 'running' ? 'green' : 'red';\n  html += `<tr>`;\n  html += `<td>${container.name}</td>`;\n  html += `<td style=\"color: ${statusColor};\">${container.status}</td>`;\n  html += `<td>${container.health}</td>`;\n  html += `<td>${container.restarts}</td>`;\n  html += `</tr>`;\n}\n\nhtml += '</table>';\n\nreturn {\n  json: {\n    emailSubject: issues.length > 0 ? `⚠️ Docker Issues Detected (${issues.length})` : '✅ Docker Health Report - All Good',\n    emailBody: html,\n    hasIssues: issues.length > 0,\n    issueCount: issues.length,\n    stoppedCount: stopped.length\n  }\n};"
+      },
+      "name": "Process & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "db02a8fb-21c6-4dce-9a79-0f47d8fca623",
+      "notes": "Parses JSON and creates formatted HTML email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "={{ $json.emailSubject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -80
+      ],
+      "id": "38a0b2bf-5877-4aa4-b68a-3c33ec4616a8",
+      "webhookId": "ef683b2e-1a56-4214-9e1d-485c5fcc230b",
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      },
+      "notes": "Configure your SMTP settings in n8n credentials"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a20cf9be-1d55-40d6-a262-18552eba6dbb",
+              "leftValue": "={{ $json.hasIssues }}",
+              "rightValue": "{{ true }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "0e008abd-4e6b-412b-a5f9-cedacc95a9c5",
+              "leftValue": "={{ $json.issueCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "bde6c11a-ff3d-4b0c-8ece-d6f5ab37274b",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "SSH - Run Monitor Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH - Run Monitor Script": {
+      "main": [
+        [
+          {
+            "node": "Process & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process & Format": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "de23ca33-67fb-4cc3-b9bc-9ce833e2ea73",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "id": "XjNG1PhI6t5MdwS1",
+  "tags": []
+}

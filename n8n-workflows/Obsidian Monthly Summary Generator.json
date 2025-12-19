@@ -1,0 +1,206 @@
+{
+  "name": "Obsidian Monthly Summary Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 23 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "aab814fe-97b5-4009-92fb-6b4eeb21909a",
+      "name": "Schedule: 1st of Month at 11 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Triggers on the 1st day of each month to summarize previous month"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get previous month (since we run on 1st to summarize last month)\nconst now = new Date();\nconst lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst year = lastMonth.getFullYear();\nconst yearShort = String(year).slice(-2);\nconst month = String(lastMonth.getMonth() + 1).padStart(2, '0');\nconst monthName = lastMonth.toLocaleString('default', { month: 'long' });\n\nreturn [{\n  json: {\n    year: year,\n    yearShort: yearShort,\n    month: month,\n    monthName: monthName,\n    summaryFileName: `Summary-${month}-${yearShort}.md`\n  }\n}];"
+      },
+      "id": "c732a9d3-a401-45a8-86c2-b5ae0ea771a8",
+      "name": "Calculate Month Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Determine current month and file paths"
+    },
+    {
+      "parameters": {
+        "command": "=ls -1 /mnt/obsidian-vault/Weekly\\ Notes/Week-{{ $json.month }}-*.md 2>/dev/null || echo ''"
+      },
+      "id": "c0011bf1-b987-4289-98f5-21180010b20f",
+      "name": "List Weekly Note Files",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "notes": "Find all weekly notes from previous month via SSH",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst fileListOutput = data.stdout || '';\nconst monthData = $('Calculate Month Details').first().json;\n\n// Parse file list\nconst files = fileListOutput.trim().split('\\n').filter(f => f.length > 0);\n\nif (files.length === 0) {\n  return [{\n    json: {\n      error: true,\n      message: `No weekly notes found for ${monthData.monthName} ${monthData.year}`,\n      monthData: monthData\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    error: false,\n    files: files,\n    fileCount: files.length,\n    monthData: monthData\n  }\n}];"
+      },
+      "id": "91ef5fce-baa9-47d8-8d2a-1d47bebadb67",
+      "name": "Parse Weekly Note Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notes": "Process list of weekly note files"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "718e9ce1-f282-497a-b8ba-c601584dbb08",
+      "name": "Files Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "notes": "Check if any weekly notes exist"
+    },
+    {
+      "parameters": {
+        "command": "=cat /mnt/obsidian-vault/Weekly\\ Notes/Week-{{ $('Calculate Month Details').first().json.month }}-*.md 2>/dev/null"
+      },
+      "id": "f175c223-09d0-483e-9085-e2a7d08e27a1",
+      "name": "Read All Weekly Notes",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [1340, 200],
+      "notes": "Combine all weekly note content via SSH",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Review the following weekly notes from {{ $('Calculate Month Details').first().json.monthName }} {{ $('Calculate Month Details').first().json.year }} and create a structured monthly summary.\n\nWEEKLY NOTES:\n{{ $json.stdout }}\n\nCreate a monthly summary with these sections:\n\n# Monthly Summary: {{ $('Calculate Month Details').first().json.monthName }} {{ $('Calculate Month Details').first().json.year }}\n\n## Overview\n(2-3 sentences summarizing the month)\n\n## Key Accomplishments\n(Bullet list of major wins and completed projects)\n\n## Work Highlights\n(Important work projects, deployments, and achievements)\n\n## Personal & Homelab\n(Personal projects, learning, and homelab improvements)\n\n## Challenges & Learnings\n(Issues faced, lessons learned, areas for improvement)\n\n## Metrics\n- Weeks tracked: {{ $('Parse Weekly Note Files').first().json.fileCount }}\n- PTO days: (count from notes)\n- Major projects: (count significant items)\n\n## Looking Ahead\n(Carry-over items and focus for next month)\n\nBe specific, use actual project names and details from the notes. Focus on meaningful accomplishments.",
+        "options": {
+          "systemMessage": "You are analyzing monthly productivity notes to create a comprehensive summary. Extract specific accomplishments, projects, and insights from the weekly notes provided. Be concise but thorough."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1560, 200],
+      "id": "8d06ce3f-13d3-41b6-b250-dc42178c7526",
+      "name": "AI Agent: Generate Summary"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {
+          "temperature": 0.3,
+          "numCtx": 8192
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [1560, 400],
+      "id": "6fa53362-fe11-4511-8556-0038fed9ca88",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "drSqqBR7K2QUuRtu",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get AI Agent output\nconst aiOutput = $input.first().json;\nconst summary = aiOutput.output || \"Summary generation failed\";\n\n// Get month data\nconst monthData = $('Calculate Month Details').first().json;\nconst fileCount = $('Parse Weekly Note Files').first().json.fileCount;\n\n// Build the final markdown file\nconst finalContent = `${summary}\\n\\n---\\n\\n## Metadata\\n\\n- **Generated**: ${new Date().toISOString()}\\n- **Source**: ${fileCount} weekly notes\\n- **AI Model**: qwen2.5:7b via Ollama\\n\\n---\\ntags: #monthlysummary #${monthData.year} #${monthData.monthName.toLowerCase()}`;\n\n// Escape content for safe shell usage - use base64 encoding\nconst contentBase64 = Buffer.from(finalContent).toString('base64');\n\nreturn [{\n  json: {\n    content: finalContent,\n    contentBase64: contentBase64,\n    fileName: monthData.summaryFileName,\n    monthName: monthData.monthName,\n    year: monthData.year,\n    yearShort: monthData.yearShort,\n    month: monthData.month\n  }\n}];"
+      },
+      "id": "e0045783-13fb-430a-976d-bee14aaa1547",
+      "name": "Format Monthly Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200],
+      "notes": "Create final markdown file and base64 encode it"
+    },
+    {
+      "parameters": {
+        "command": "=echo '{{ $json.contentBase64 }}' | base64 -d > /mnt/obsidian-vault/Monthly\\ Summaries/{{ $json.fileName }} && echo 'File written successfully'"
+      },
+      "id": "8d0ded0e-eac8-457f-af55-83bc6f57ec8f",
+      "name": "Write Summary File",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [2000, 200],
+      "notes": "Decode base64 and write to file via SSH",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule: 1st of Month at 11 PM": {
+      "main": [[{ "node": "Calculate Month Details", "type": "main", "index": 0 }]]
+    },
+    "Calculate Month Details": {
+      "main": [[{ "node": "List Weekly Note Files", "type": "main", "index": 0 }]]
+    },
+    "List Weekly Note Files": {
+      "main": [[{ "node": "Parse Weekly Note Files", "type": "main", "index": 0 }]]
+    },
+    "Parse Weekly Note Files": {
+      "main": [[{ "node": "Files Found?", "type": "main", "index": 0 }]]
+    },
+    "Files Found?": {
+      "main": [[{ "node": "Read All Weekly Notes", "type": "main", "index": 0 }]]
+    },
+    "Read All Weekly Notes": {
+      "main": [[{ "node": "AI Agent: Generate Summary", "type": "main", "index": 0 }]]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [[{ "node": "AI Agent: Generate Summary", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "AI Agent: Generate Summary": {
+      "main": [[{ "node": "Format Monthly Summary", "type": "main", "index": 0 }]]
+    },
+    "Format Monthly Summary": {
+      "main": [[{ "node": "Write Summary File", "type": "main", "index": 0 }]]
+    },
+    "Write Summary File": {
+      "main": []
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7",
+  "id": "IPH0u8ia30GKVgo8",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "tags": [
+    { "name": "obsidian", "id": "rJeliFkp45ThaAX7" },
+    { "name": "automation", "id": "m9BGP4btPgFMMi4A" },
+    { "name": "summary", "id": "umapIBsXLeDg7T7W" }
+  ]
+}

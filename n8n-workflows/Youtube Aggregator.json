@@ -1,0 +1,473 @@
+{
+  "name": "Youtube Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 12
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -336,
+        -128
+      ],
+      "id": "2dbe7910-f167-4131-bb37-7cdc249aae0d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.youtube.com/feeds/videos.xml?channel_id={{ $json.channelids }}",
+        "options": {
+          "customFields": "User-Agent"
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        -128
+      ],
+      "id": "73b09425-df39-4cb5-a32b-5c7e6913a904",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Title: {{ $json.title }}\n\nLink: {{ $json.original_link }}\n\nTranscript: {{ $json.transcript }}\n\nWrite a compelling 2-3 sentence summary that tells viewers exactly what this video covers and why they should watch it. Focus on specific topics, tools, features, or demonstrations mentioned. Make it concrete and actionable.",
+        "options": {
+          "systemMessage": "=You are an expert YouTube video analyst specializing in AI, technology, and productivity tools.\n\nYour job is to create compelling, specific summaries that help viewers decide if they should watch a video.\n\nWhen you receive a video transcript:\n- Identify the MAIN topic or tool being discussed\n- Extract 2-3 specific, concrete takeaways or features mentioned\n- Highlight any demonstrations, comparisons, or unique insights\n- Write in an engaging, informative tone\n- Keep it to 2-3 sentences maximum\n\nFocus on WHAT viewers will learn or see, not generic praise. Be specific about features, use cases, and demonstrations shown."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1888,
+        -112
+      ],
+      "id": "b2527c08-a256-4ae3-9a20-b2094f47b925",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "458d05dc-202b-4097-a722-cf9fd6daf8a6",
+              "name": "original_title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "6075300e-127a-428a-a445-c2151ba3cf58",
+              "name": "original_link",
+              "value": "={{ $json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "c14e4681-f15d-4c29-b72e-6ea9fde2e7ef",
+              "name": "author",
+              "value": "={{ $json.author }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        -128
+      ],
+      "id": "99d57fd8-2c1c-4dcf-901c-af48e966cd37",
+      "name": "Edit Fields - Save originals"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        160
+      ],
+      "id": "1c6a82cb-e3f9-4fc7-950e-f75b411909a9",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "drSqqBR7K2QUuRtu",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst videos = items.map(item => {\n  const data = item.json;\n  \n  const title = data.original_title || data.title || 'Untitled Video';\n  const link = data.original_link || data.link || '';\n  const summary = data.output || 'No summary available';\n  const hasTranscript = data.hasTranscript || false;\n  const channel = data.creator || data.author || 'Unknown Channel';\n  \n  let videoId = data.videoId || data.video_id || '';\n  if (!videoId && link) {\n    const match = link.match(/(?:v=|\\/)([0-9A-Za-z_-]{11})/);\n    if (match) videoId = match[1];\n  }\n  \n  const thumb = videoId ? `https://i.ytimg.com/vi/${videoId}/default.jpg` : 'https://via.placeholder.com/120x90/667eea/fff?text=YT';\n  const badgeTxt = hasTranscript ? 'Analyzed' : 'Title Only';\n  const badgeEmoji = hasTranscript ? '✅' : '📝';\n  const badgeBg = hasTranscript ? '#10b981' : '#f59e0b';\n  \n  return { title, link, summary, channel, thumb, badgeTxt, badgeEmoji, badgeBg, hasTranscript };\n});\n\nconst now = new Date();\nconst longDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });\nconst shortDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });\n\nconst videoCards = videos.map(v => `\n  <div style=\"margin-bottom:20px;padding:15px;background:#fff;border-radius:8px;border:1px solid #e5e7eb;\">\n    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr>\n      <td width=\"140\" valign=\"top\" style=\"padding-right:15px;\">\n        <a href=\"${v.link}\">\n          <img src=\"${v.thumb}\" width=\"120\" height=\"90\" style=\"display:block;border-radius:4px;\"/>\n        </a>\n      </td>\n      <td valign=\"top\">\n        <div style=\"margin-bottom:8px;\">\n          <span style=\"color:#6b7280;font-size:12px;\">📺 ${v.channel}</span>\n          <span style=\"background:${v.badgeBg};color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;\">${v.badgeEmoji} ${v.badgeTxt}</span>\n        </div>\n        <h3 style=\"margin:0 0 8px;\">\n          <a href=\"${v.link}\" style=\"color:#1f2937;text-decoration:none;font-size:16px;\">${v.title}</a>\n        </h3>\n        <p style=\"color:#4b5563;line-height:1.5;margin:0 0 10px;font-size:13px;\">${v.summary}</p>\n        <a href=\"${v.link}\" style=\"display:inline-block;background:#3b82f6;color:#fff;padding:6px 14px;text-decoration:none;border-radius:5px;font-size:13px;\">Watch Video</a>\n      </td>\n    </tr></table>\n  </div>\n`).join('');\n\nconst html = `<!DOCTYPE html>\n<html>\n<head><meta charset=\"utf-8\"></head>\n<body style=\"font-family:Arial,sans-serif;background:#f3f4f6;margin:0;padding:20px;\">\n  <div style=\"max-width:650px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);\">\n    <div style=\"background:linear-gradient(135deg,#667eea,#764ba2);padding:35px 30px;text-align:center;\">\n      <h1 style=\"color:#fff;margin:0;font-size:28px;\">📹 YouTube Daily Digest</h1>\n      <p style=\"color:#e0e7ff;margin:8px 0 0;font-size:15px;\">${longDate}</p>\n    </div>\n    <div style=\"padding:25px 20px;background:#f9fafb;\">\n      <h2 style=\"color:#1f2937;font-size:20px;margin:0 0 20px;font-weight:600;\">🎬 New Videos</h2>\n      ${videoCards}\n    </div>\n    <div style=\"background:#fff;padding:18px 30px;border-top:1px solid #e5e7eb;text-align:center;\">\n      <p style=\"color:#6b7280;margin:0;font-size:12px;\">\n        Videos summarized with AI.<br>\n        ✅ Analyzed = Full transcript · 📝 Title Only = Based on title\n      </p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = videos.map(v => {\n  const badge = v.hasTranscript ? '[Analyzed]' : '[Title Only]';\n  return `${v.title} ${badge}\\nChannel: ${v.channel}\\n${v.summary}\\n${v.link}\\n\\n---\\n`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    subject: `📹 YouTube Daily Digest - ${shortDate}`,\n    html: html,\n    text: text\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        -256
+      ],
+      "id": "055b2e4e-aeef-4d3b-acdb-4c54820ddda5",
+      "name": "Code - Daily Summary"
+    },
+    {
+      "parameters": {
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2592,
+        -128
+      ],
+      "id": "1954665e-ba76-4150-af1c-59c8473d6cfa",
+      "name": "Send email",
+      "webhookId": "16d51c2e-5d44-4909-8911-f71748632530",
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2d7aab64-0a07-4425-a601-da5cf1407730",
+              "name": "channelids",
+              "value": "[\n\"UChpleBmo18P08aKCIgti38g\"\n]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -112,
+        -128
+      ],
+      "id": "73009fac-ec9d-42c5-8be2-63da604c3bcd",
+      "name": "Edit Fields - YT channelids"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "channelids",
+        "include": "",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        96,
+        -128
+      ],
+      "id": "db8b9628-4884-45aa-b18f-55502c77e636",
+      "name": "Split Out - channels"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0fd4da78-08af-4b5b-986b-0fdd494e21b9",
+              "leftValue": "={{ $json.pubDate.toDateTime().format('yyyy-MM-dd') }}",
+              "rightValue": "={{ DateTime.now().minus({ days: 2 }).toFormat('yyyy-MM-dd') }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        496,
+        -128
+      ],
+      "id": "3e8dbc9b-5bfa-4585-b108-b87a81c8d85a",
+      "name": "48 Hour Filter"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import re\n\nitems = _input.all()\nresults = []\n\ndef extract_video_id(url):\n    patterns = [\n        r'(?:v=|/)([0-9A-Za-z_-]{11}).*',\n        r'(?:embed/)([0-9A-Za-z_-]{11})',\n    ]\n    for pattern in patterns:\n        match = re.search(pattern, url)\n        if match:\n            return match.group(1)\n    return None\n\nshorts_filtered = 0\n\nfor item in items:\n    data = item.json\n    url = (data.get('original_link', '') or data.get('link', '') or data.get('url', ''))\n    \n    # FILTER OUT SHORTS\n    if '/shorts/' in url or '/short/' in url:\n        shorts_filtered += 1\n        continue\n    \n    # Extract video ID\n    video_id = extract_video_id(url)\n    \n    if video_id:\n        result = dict(data)\n        result['videoId'] = video_id\n        results.append({'json': result})\n\nprint(f\"Filtered {shorts_filtered} shorts, kept {len(results)} regular videos\")\n\nreturn results"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -128
+      ],
+      "id": "d70923fc-42ef-484c-a233-979d1b92fbe5",
+      "name": "Filter Out Shorts"
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:5001/transcript?video_id={{ $json.videoId }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        64
+      ],
+      "id": "584376c6-faba-4d3f-9ad9-4503fe3fbb8c",
+      "name": "Fetch Transcript from API"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import re\n\nitems = _input.all()\nresults = []\n\ndef js_to_python(obj):\n    \"\"\"Convert JsProxy objects to Python objects\"\"\"\n    if hasattr(obj, 'to_py'):\n        return obj.to_py()\n    return obj\n\nfor idx, item in enumerate(items):\n    data = item['json']\n    \n    # Start by copying ALL original fields\n    result = {}\n    for key, value in data.items():\n        if key != 'transcript':  # Don't copy raw transcript yet\n            result[key] = value\n    \n    # Ensure we have the key fields\n    if 'original_title' not in result:\n        result['original_title'] = data.get('title', 'Unknown')\n    \n    if 'original_link' not in result:\n        result['original_link'] = data.get('link', '')\n    \n    # Extract videoId if missing\n    if 'videoId' not in result or not result['videoId']:\n        url = result.get('original_link', '')\n        match = re.search(r'(?:v=|/)([0-9A-Za-z_-]{11})', url)\n        if match:\n            result['videoId'] = match.group(1)\n        else:\n            result['videoId'] = ''\n    \n    # Keep creator/author field (for channel name)\n    if 'creator' not in result and 'author' in data:\n        result['creator'] = data['author']\n    \n    # Initialize transcript fields\n    result['hasTranscript'] = False\n    result['transcript'] = \"Transcript not available for this video.\"\n    \n    # Get transcript and convert from JsProxy\n    transcript_data = data.get('transcript')\n    \n    if transcript_data is not None:\n        transcript_data = js_to_python(transcript_data)\n        \n        if isinstance(transcript_data, list) and len(transcript_data) > 0:\n            text_parts = []\n            \n            for segment in transcript_data:\n                segment = js_to_python(segment)\n                if isinstance(segment, dict) and 'text' in segment:\n                    text_parts.append(segment['text'])\n            \n            if text_parts:\n                full_transcript = ' '.join(text_parts)\n                full_transcript = ' '.join(full_transcript.split())\n                \n                if len(full_transcript) > 100:\n                    result['transcript'] = full_transcript[:4000]\n                    result['hasTranscript'] = True\n    \n    results.append({'json': result})\n\n# Summary\ntotal = len(results)\nwith_transcripts = sum(1 for r in results if r['json']['hasTranscript'])\n\nprint(f\"Processed {total} videos: {with_transcripts} with transcripts, {total - with_transcripts} without\")\n\nreturn results"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        -208
+      ],
+      "id": "d5199cb3-6666-4ab4-96c9-d0317b7698a3",
+      "name": "Format Transcript Data"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        -208
+      ],
+      "id": "4cce6afe-ddce-4a40-aa1f-c446c79a75a2",
+      "name": "Merge Video Data with Transcripts"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2192,
+        -256
+      ],
+      "id": "dcfc14e7-c3f7-4c56-a53c-6f2cba5f52d5",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields - YT channelids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "48 Hour Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields - Save originals": {
+      "main": [
+        [
+          {
+            "node": "Filter Out Shorts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields - YT channelids": {
+      "main": [
+        [
+          {
+            "node": "Split Out - channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out - channels": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "48 Hour Filter": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields - Save originals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Out Shorts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Transcript from API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Video Data with Transcripts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Transcript from API": {
+      "main": [
+        [
+          {
+            "node": "Merge Video Data with Transcripts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format Transcript Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Video Data with Transcripts": {
+      "main": [
+        [
+          {
+            "node": "Format Transcript Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code - Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d0fe9507-7acc-44b7-8ada-6e9da631ad1c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "id": "5pJWoW430dBn1g7T",
+  "tags": []
+}
