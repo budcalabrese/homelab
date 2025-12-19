@@ -146,6 +146,58 @@ Budget export scripts require:
 
 ---
 
+### Obsidian Monthly Summary
+
+**Files:**
+- `obsidian-monthly-summary.json` - Generates monthly summaries from weekly notes
+
+#### How It Works
+
+This workflow automatically creates a comprehensive monthly summary by analyzing all weekly notes from the current month using AI.
+
+**Schedule**: Monthly, last day at 11:00 PM (`0 23 L * *`)
+
+**What it does**:
+1. Calculates current month and year
+2. Lists all weekly note files from current month (e.g., `Week of 12-*.md`)
+3. Reads and combines content from all weekly notes
+4. Sends combined content to Ollama (qwen2.5:7b) for AI summarization
+5. Generates structured markdown with:
+   - Overview (2-3 sentence month summary)
+   - Key accomplishments
+   - Work highlights
+   - Personal & homelab projects
+   - Challenges & learnings
+   - Metrics (weeks tracked, PTO days, major projects)
+   - Looking ahead (carry-over items)
+6. Adds metadata (generation date, source count, AI model)
+7. Saves to `obsidian-vault/Monthly Summaries/YYYY-MM-Summary.md`
+
+**Output**:
+- Monthly summary markdown file
+- Tagged with `#monthlysummary #year #monthname`
+- Metadata section with generation details
+
+**Dependencies**:
+- Obsidian weekly notes in `obsidian-vault/Weekly Notes/`
+- Weekly note naming: `Week of MM-DD-YYYY.md`
+- Ollama running with qwen2.5:7b model
+- Writable `obsidian-vault/Monthly Summaries/` directory
+
+**AI Prompt Features**:
+- Uses temperature 0.3 for consistent, focused summaries
+- 8192 token context window for large monthly content
+- Specific sections for work vs personal projects
+- Extracts metrics from notes (PTO, major projects)
+- Identifies carry-over items for next month
+
+**Error Handling**:
+- Gracefully handles months with no weekly notes
+- Sends notification if no notes found
+- Validates file paths before reading
+
+---
+
 ## Setup Instructions
 
 ### Prerequisites
@@ -218,6 +270,18 @@ No credentials required - connects to local VictoriaLogs and Ollama.
 ollama pull qwen2.5:7b
 ```
 
+#### Obsidian Monthly Summary Workflow
+
+No credentials required - reads from local filesystem and uses local Ollama.
+
+**Requirements:**
+- Ollama running with qwen2.5:7b model (same as above)
+- Weekly notes in `obsidian-vault/Weekly Notes/` with format: `Week of MM-DD-YYYY.md`
+- Writable `obsidian-vault/Monthly Summaries/` directory
+
+**Optional Notifications:**
+Replace the "Success Notification" and "No Files Notification" noOp nodes with actual notification services (Discord, Slack, Email) if desired.
+
 **Email Setup (Optional but Recommended):**
 
 Replace the "Send Email (Replace This)" noOp node with an actual email sender:
@@ -234,6 +298,29 @@ Replace the "Send Email (Replace This)" noOp node with an actual email sender:
 3. Same subject/body variables
 
 ### 4. Test Workflows
+
+#### Test Obsidian Monthly Summary
+
+1. **Verify weekly notes exist**:
+   ```bash
+   ls -la /Users/bud/home_space/obsidian-vault/Weekly\ Notes/
+   ```
+   - Should see files like `Week of 12-15-2025.md`
+
+2. **Run workflow manually**:
+   - Open "Obsidian Monthly Summary Generator" workflow
+   - Click "Execute Workflow"
+   - Watch execution flow
+
+3. **Verify results**:
+   ```bash
+   ls -la /Users/bud/home_space/obsidian-vault/Monthly\ Summaries/
+   ```
+   - Should see `YYYY-MM-Summary.md` file
+   - Open file to verify AI-generated content
+   - Check metadata section at bottom
+
+**Note:** This workflow is designed to run at end of month, but you can test it anytime by manually executing. It will summarize all weekly notes from the current month.
 
 #### Test Podcast Generation
 
@@ -437,5 +524,5 @@ n8n export:workflow --all --output=/path/to/backup/
 
 ---
 
-**Last Updated:** December 17, 2025
-**Workflows:** 4 total (2 podcast, 2 budget)
+**Last Updated:** December 19, 2025
+**Workflows:** 6 total (2 podcast, 2 budget, 1 monitoring, 1 obsidian)
