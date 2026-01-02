@@ -94,6 +94,99 @@ This directory contains all n8n workflow JSON files for homelab automation.
 
 ---
 
+### Docker Health Monitoring
+
+**Files:**
+- `Docker Health Monitor.json` - Monitors Docker containers and Gitea health
+
+#### How It Works
+
+**Schedule**: Every 5 minutes (`*/5 * * * *`)
+
+**What it does**:
+1. Executes `/scripts/docker-monitor.sh` via SSH to alpine-utility
+2. Monitors all Docker containers for:
+   - Health status (healthy, unhealthy, starting)
+   - Error states
+   - Restart counts
+3. Monitors Gitea health endpoint (`/api/healthz`)
+4. Checks Gitea cache and database status
+5. Sends email alert if:
+   - Any container is unhealthy or has errors
+   - Gitea is down or has health issues
+   - Any container has restarted
+
+**Output**:
+- Email alerts only on errors (not on success)
+- JSON health report with all container statuses
+
+---
+
+### Karakeep Backup
+
+**Files:**
+- `Karakeep Daily Backup.json` - Daily backup of Karakeep data
+
+#### How It Works
+
+**Schedule**: Daily at 2:00 AM (`0 2 * * *`)
+
+**What it does**:
+1. Executes `/scripts/export_karakeep_backup.sh` via SSH to alpine-utility
+2. Backs up all Karakeep data from `/mnt/karakeep`
+3. Saves timestamped backup to `/mnt/backups/karakeep/`
+4. Retains last 7 backups automatically
+5. Sends email alert **only on failure**
+
+**Output**:
+- Timestamped backup directory: `karakeep_backup_YYYY-MM-DD_HH-MM-SS`
+- Email alert if backup fails
+- No email on success (quiet operation)
+
+**Dependencies**:
+- alpine-utility container with volume mounts:
+  ```yaml
+  volumes:
+    - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
+    - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+  ```
+- Backup script: `/scripts/export_karakeep_backup.sh`
+
+---
+
+### Financial Data Downloader
+
+**Files:**
+- `SPYI & QQQI 19a Downloader - Final.json` - Downloads SEC 19a notices
+
+#### How It Works
+
+This workflow downloads SEC 19a notices for SPYI and QQQI funds and commits them to the financial-data git repository.
+
+**What it does**:
+1. Scrapes SEC EDGAR for SPYI and QQQI 19a notice filings
+2. Filters for PDF documents only
+3. Downloads PDFs via SSH to alpine-utility using `wget`
+4. Saves to `/mnt/financial-data/19a_notices/`
+5. Commits and pushes to Gitea repository automatically
+
+**Output**:
+- PDFs in `financial-data/19a_notices/` directory
+- Automated git commits with filing information
+- Pushed to Gitea for version control
+
+**Dependencies**:
+- alpine-utility container with volume mounts:
+  ```yaml
+  volumes:
+    - /Users/bud/home_space/financial-data:/mnt/financial-data
+  ```
+- Git installed in alpine-utility
+- SSH credentials configured
+- Gitea repository credentials in git remote URL
+
+---
+
 ### Budget Export Automation
 
 **Files:**
@@ -564,5 +657,5 @@ n8n export:workflow --all --output=/path/to/backup/
 
 ---
 
-**Last Updated:** December 19, 2025
-**Workflows:** 6 total (2 podcast, 2 budget, 1 monitoring, 1 obsidian)
+**Last Updated:** January 2, 2026
+**Workflows:** 9 total (2 podcast, 2 budget, 1 docker monitoring, 1 karakeep backup, 1 financial data, 1 obsidian, 1 victorialogs)

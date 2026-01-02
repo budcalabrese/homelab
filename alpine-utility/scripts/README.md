@@ -2,6 +2,28 @@
 
 This directory contains utility scripts that run inside the alpine-utility container.
 
+## Backup Scripts
+
+### export_karakeep_backup.sh
+Exports daily backups of the Karakeep SQLite database and data directory.
+
+**What it does:**
+- Backs up all data from `/mnt/karakeep` (karakeep data directory)
+- Creates timestamped backup in `/mnt/backups/karakeep/`
+- Keeps last 7 backups automatically
+- Outputs backup size and retention count
+
+**Triggered by:** n8n workflow `Karakeep Daily Backup` (daily at 2:00 AM)
+
+**Manual execution:**
+```bash
+# From host
+docker exec alpine-utility /scripts/export_karakeep_backup.sh
+
+# Or via SSH (from n8n or other containers)
+ssh root@alpine-utility /scripts/export_karakeep_backup.sh
+```
+
 ## Budget Export Scripts
 
 ### export_monthly_snapshot.sh
@@ -60,23 +82,67 @@ volumes:
   - /Volumes/docker/container_configs/budget-dashboard/app-data:/mnt/budget-dashboard:ro
   - /Volumes/docker/container_configs/budget-dashboard-gf/app-data:/mnt/budget-dashboard-gf:ro
 
-  # Backup destination (read-write)
+  # Karakeep data (read-only)
+  - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
+
+  # Backup destinations (read-write)
   - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
+  - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+
+  # Financial data git repo (read-write)
+  - /Users/bud/home_space/financial-data:/mnt/financial-data
 ```
 
 **Important:** Scripts are mounted from the git repo, so any edits to files in `/Users/bud/home_space/homelab/alpine-utility/scripts/` are immediately available in the container. Always commit changes to git!
 
+## Docker Monitoring
+
+### docker-monitor.sh
+Monitors health of all Docker containers and Gitea instance.
+
+**What it does:**
+- Checks health status of all Docker containers
+- Monitors Gitea API health endpoint (`/api/healthz`)
+- Outputs JSON format with container and Gitea health
+- Reports errors, restarts, and unhealthy containers
+
+**Triggered by:** n8n workflow `Docker Health Monitor` (every 5 minutes)
+
+**Manual execution:**
+```bash
+# From host
+docker exec alpine-utility /scripts/docker-monitor.sh
+```
+
 ## N8N Workflows
 
 Import these workflows into n8n:
+- `/Users/bud/home_space/homelab/n8n-workflows/Karakeep Daily Backup.json`
 - `/Users/bud/home_space/homelab/n8n-workflows/budget-export-main.json`
 - `/Users/bud/home_space/homelab/n8n-workflows/budget-export-gf.json`
+- `/Users/bud/home_space/homelab/n8n-workflows/Docker Health Monitor.json`
+- `/Users/bud/home_space/homelab/n8n-workflows/SPYI & QQQI 19a Downloader - Final.json`
 
-Both workflows:
+**Karakeep Daily Backup:**
+1. Triggers daily at 2:00 AM
+2. Executes backup script via SSH to alpine-utility
+3. Sends email alert on failure only
+
+**Budget Export workflows:**
 1. Trigger on days 28-31 of each month (11:55 PM and 11:57 PM respectively)
 2. Execute the export script via SSH to alpine-utility container
 3. Check exit code for success/failure
 4. Send notification (optional - replace noOp nodes with Discord/Slack/etc.)
+
+**Docker Health Monitor:**
+1. Triggers every 5 minutes
+2. Runs docker-monitor.sh via SSH
+3. Sends email alert if any containers or Gitea are unhealthy
+
+**SPYI & QQQI 19a Downloader:**
+1. Downloads SEC 19a notices for SPYI and QQQI funds
+2. Commits PDFs to financial-data git repository
+3. Pushes to Gitea automatically
 
 **Technical Details:**
 - Uses SSH node (`n8n-nodes-base.ssh`) to connect to alpine-utility
@@ -90,6 +156,9 @@ See [n8n Workflows README](../../n8n-workflows/README.md) for full documentation
 These scripts require:
 - `jq` - JSON processor (already installed in alpine-utility)
 - `bc` - Basic calculator (already installed in alpine-utility)
+- `git` - Version control (already installed in alpine-utility)
+- `curl` - HTTP client (already installed in alpine-utility)
+- `wget` - File downloader (already installed in alpine-utility)
 
 ## Troubleshooting
 
