@@ -1,0 +1,59 @@
+# Homelab Project Rules
+
+## Alpine-Utility Container
+
+The `alpine-utility` container is our **bastion host** for homelab operations.
+
+### Key Facts:
+- **Container name**: `alpine-utility`
+- **SSH Access**: Configured with SSH keys (port 2223 on host, port 22 in container)
+- **SSH Credentials in n8n**: "SSH Password account" (ID: JFyXom4nOrhtezt1)
+- **Hostname**: `alpine-utility` (accessible by name from other containers)
+
+### Volume Mounts:
+- `/scripts` → `/Users/bud/home_space/homelab/alpine-utility/scripts` (Git-tracked scripts)
+- `/config` → `/Volumes/docker/container_configs/alpine-utility` (Persistent config)
+- `/mnt/budget-dashboard` → Budget dashboard data (read-only)
+- `/mnt/budget-dashboard-gf` → Budget dashboard GF data (read-only)
+- `/mnt/backups/budget-dashboard` → Budget export destination (read-write)
+- `/mnt/obsidian-vault` → Obsidian vault
+- `/mnt/audiobookshelf` → Audiobookshelf podcasts
+
+### Usage Patterns:
+1. **From n8n workflows**: Use SSH node to execute commands
+   - Example: SSH to `alpine-utility`, run `/scripts/export_monthly_snapshot.sh`
+2. **From local CLI**: `docker exec alpine-utility <command>`
+3. **Scripts location**: Always use `/scripts/` (git-tracked, auto-synced)
+
+### When writing n8n workflows:
+- ALWAYS use the SSH node type (`n8n-nodes-base.ssh`)
+- Connect to hostname: `alpine-utility`
+- Use credential: "SSH Password account"
+- Execute scripts from `/scripts/` directory
+
+### Script Development:
+- Edit scripts in: `/Users/bud/home_space/homelab/alpine-utility/scripts/`
+- Changes are immediately available in container (live mount)
+- All scripts are version-controlled in git
+
+## n8n Workflow Development
+
+### Node Types Available:
+- ✅ SSH node (`n8n-nodes-base.ssh`) - for command execution
+- ✅ Code node (`n8n-nodes-base.code`) - for JavaScript
+- ✅ Schedule Trigger (`n8n-nodes-base.scheduleTrigger`)
+- ❌ NOT AVAILABLE: `executeCommand` node (unrecognized in this n8n version)
+
+### Best Practices:
+- Store workflow JSON files in `/Users/bud/home_space/homelab/n8n-workflows/`
+- Use SSH node for all command execution via alpine-utility
+- Check exit codes: SSH node returns `code`, not `exitCode`
+- Version all workflows in git before importing to n8n
+
+## Repository Structure
+
+This homelab repo contains:
+- Docker Compose configurations
+- n8n workflow JSON files
+- Alpine-utility scripts (executed in container)
+- Container configurations and environment files

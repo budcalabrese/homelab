@@ -526,6 +526,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /Volumes/docker/container_configs/alpine-utility:/config
+      - /Users/bud/home_space/homelab/alpine-utility/scripts:/scripts
       - /Volumes/docker/container_configs/audiobookshelf/podcasts:/mnt/audiobookshelf
       # Budget export script volumes
       - /Volumes/docker/container_configs/budget-dashboard/app-data:/mnt/budget-dashboard:ro
@@ -564,7 +565,7 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:9428/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9428/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

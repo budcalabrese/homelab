@@ -7,7 +7,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "55 23 L * *"
+              "expression": "55 23 28-31 * *"
             }
           ]
         }
@@ -24,35 +24,50 @@
     },
     {
       "parameters": {
-        "command": "docker exec alpine-utility /bin/sh /config/scripts/export_monthly_snapshot.sh",
-        "options": {}
+        "command": "/scripts/export_monthly_snapshot.sh"
       },
       "id": "execute-export",
       "name": "Execute Export Script",
-      "type": "n8n-nodes-base.executeCommand",
+      "type": "n8n-nodes-base.ssh",
       "typeVersion": 1,
       "position": [
         460,
         300
       ],
-      "notes": "Runs export script in alpine-utility container"
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      },
+      "notes": "Runs export script in alpine-utility container via SSH"
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.exitCode }}",
-              "operation": "equals",
-              "value2": "0"
+              "id": "check-exit-code",
+              "leftValue": "={{ $json.code }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         }
       },
       "id": "check-success",
       "name": "Check Success",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         680,
         300
