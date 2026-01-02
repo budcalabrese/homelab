@@ -79,6 +79,37 @@ done
 echo ""
 echo "  ],"
 
+# Check Gitea health
+GITEA_URL="http://192.168.0.9:3002/api/healthz"
+GITEA_RESPONSE=$(curl -s -m 5 "$GITEA_URL" 2>/dev/null)
+GITEA_STATUS=$(echo "$GITEA_RESPONSE" | jq -r '.status' 2>/dev/null)
+GITEA_STATUS=${GITEA_STATUS:-error}
+[ -z "$GITEA_STATUS" ] && GITEA_STATUS="error"
+GITEA_CACHE=$(echo "$GITEA_RESPONSE" | jq -r '.checks."cache:ping"[0].status' 2>/dev/null)
+GITEA_CACHE=${GITEA_CACHE:-error}
+[ -z "$GITEA_CACHE" ] && GITEA_CACHE="error"
+GITEA_DB=$(echo "$GITEA_RESPONSE" | jq -r '.checks."database:ping"[0].status' 2>/dev/null)
+GITEA_DB=${GITEA_DB:-error}
+[ -z "$GITEA_DB" ] && GITEA_DB="error"
+
+# Determine if Gitea is healthy
+if [ "$GITEA_STATUS" = "pass" ] && [ "$GITEA_CACHE" = "pass" ] && [ "$GITEA_DB" = "pass" ]; then
+    GITEA_HEALTHY="true"
+    GITEA_ERROR="false"
+else
+    GITEA_HEALTHY="false"
+    GITEA_ERROR="true"
+fi
+
+echo "  \"gitea\": {"
+echo "    \"url\": \"$GITEA_URL\","
+echo "    \"status\": \"$GITEA_STATUS\","
+echo "    \"cache_status\": \"$GITEA_CACHE\","
+echo "    \"database_status\": \"$GITEA_DB\","
+echo "    \"healthy\": $GITEA_HEALTHY,"
+echo "    \"has_error\": $GITEA_ERROR"
+echo "  },"
+
 # Get overall stats
 RUNNING=$(docker ps -q 2>/dev/null | wc -l | tr -d ' \n\r')
 STOPPED=$(docker ps -a -q -f status=exited 2>/dev/null | wc -l | tr -d ' \n\r')
