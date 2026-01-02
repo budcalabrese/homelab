@@ -1,5 +1,5 @@
 alias: Office Motion Lighting - Sunset Activated
-description: Motion-based office lighting starting at sunset with 5 min auto-off
+description: Motion-based office lighting starting at sunset with 2 min auto-off
 triggers:
   - event: sunset
     id: sunset_trigger
@@ -13,7 +13,7 @@ triggers:
     from: "on"
     to: "off"
     for:
-      minutes: 5
+      minutes: 2
     id: no_motion
     trigger: state
 actions:

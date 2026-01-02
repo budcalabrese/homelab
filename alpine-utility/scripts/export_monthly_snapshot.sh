@@ -12,7 +12,7 @@
 # Configuration
 # Paths are for alpine-utility container with mounted volumes
 
-DATA_FILE="${DATA_FILE:-/mnt/budget-dashboard/budget_data.json}"
+DATA_FILE="${DATA_FILE_PATH:-/mnt/budget-dashboard/budget_data.json}"
 SNAPSHOT_DIR="${SNAPSHOT_DIR:-/mnt/backups/budget-dashboard}"
 DATE_FORMAT=$(date +%m_%d_%Y)
 TIMESTAMP=$(date +%Y-%m-%d)
