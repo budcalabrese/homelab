@@ -1,0 +1,305 @@
+{
+  "name": "SPYI & QQQI 19a Downloader - Final",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "5087dc64-21ae-4887-98b6-72e27c5344eb",
+      "name": "Manual Trigger (or Schedule)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate URLs for the most likely 19a notice for previous month\n// Strategy: Try the most common publish dates (20-26) for last month\nconst now = new Date();\nconst results = [];\n\nconst tickers = ['SPYI', 'QQQI'];\n\n// Use previous month since current month is rarely published yet\nconst prevMonthDate = new Date(now);\nprevMonthDate.setMonth(now.getMonth() - 1);\n\nconst month = prevMonthDate.getMonth() + 1;\nconst year = prevMonthDate.getFullYear();\nconst shortYear = year.toString().slice(-2);\n\n// Try days 20-26 (most common NEOS publish dates)\nfor (const ticker of tickers) {\n  for (let day = 20; day <= 26; day++) {\n    const dateStr = `${month}.${day}.${shortYear}`;\n    const filename = `${ticker}-19a1-Notice-${dateStr}-Confidential.pdf`;\n    \n    results.push({\n      json: {\n        ticker: ticker,\n        filename: filename,\n        url: `https://neosfunds.com/wp-content/uploads/${filename}`,\n        saveAs: `/Users/bud/home_space/financial-data/19a_notices/${filename}`,\n        month: month,\n        year: year,\n        day: day,\n        dateString: `${month}/${day}/${year}`\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "52d510ce-81e3-45f0-952e-206a061d286a",
+      "name": "Generate Latest 19a URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -816,
+        80
+      ],
+      "notes": "Tries days 20-26 for previous month (14 URLs total)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "fe76b2c6-19e5-4d7d-b758-83047f66ef7b",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -608,
+        80
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "notes": "Downloads PDF - continues on 404"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter to only successful downloads\n// Check if we have any binary property (means download succeeded)\nconst items = $input.all();\nconst successfulDownloads = [];\n\nfor (const item of items) {\n  // Check if item has binary data (successful download)\n  if (item.binary && Object.keys(item.binary).length > 0) {\n    successfulDownloads.push(item);\n  }\n}\n\nreturn successfulDownloads;"
+      },
+      "id": "c8a5a884-025f-4657-84ac-1fbbaca89fb3",
+      "name": "Filter Successful Downloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        80
+      ],
+      "notes": "Only pass through PDFs that downloaded successfully"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get just the latest (first) notice for each ticker\nconst items = $input.all();\n\n// Group by ticker and get first (earliest day tried) for each\nconst latestByTicker = {};\n\nfor (const item of items) {\n  const ticker = item.json.ticker;\n  if (!latestByTicker[ticker]) {\n    latestByTicker[ticker] = item;\n  }\n}\n\n// Return array of latest notices\nreturn Object.values(latestByTicker);"
+      },
+      "id": "04386ba3-8fe3-46e4-9e14-2da7ece0c342",
+      "name": "Get Latest Per Ticker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        80
+      ],
+      "notes": "Takes only the first successful download for each ticker"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "ticker",
+              "value": "={{ $json.ticker }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $json.filename }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "saveAs",
+              "value": "={{ $json.saveAs }}"
+            },
+            {
+              "name": "dateString",
+              "value": "={{ $json.dateString }}"
+            },
+            {
+              "name": "message",
+              "value": "=✅ Found: {{ $json.ticker }} - {{ $json.dateString }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c575e870-7d34-4672-803e-8682b0ea6dd3",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        64,
+        80
+      ],
+      "notes": "Clean output with all info needed for file saving"
+    },
+    {
+      "parameters": {
+        "fileName": "={{ $json.filename }}",
+        "options": {}
+      },
+      "id": "9f632a0a-fd44-4c39-b88f-df444e2a79f5",
+      "name": "Write PDF to Temp",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        288,
+        80
+      ],
+      "notes": "Save PDF using relative path"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Batch all items into a single commit command\nconst items = $input.all();\nconst filenames = items.map(item => item.json.filename).join(' ');\nconst tickers = items.map(item => item.json.ticker).join(', ');\nconst downloadCommands = items.map(item => `wget -q -O 19a_notices/${item.json.filename} '${item.json.url}'`).join(' && ');\nconst addCommands = items.map(item => `git add 19a_notices/${item.json.filename}`).join(' && ');\n\nreturn [{\n  json: {\n    downloadCommands,\n    addCommands,\n    commitMessage: `Add ${tickers} 19a notices`,\n    count: items.length\n  }\n}];"
+      },
+      "id": "39767912-bb62-4070-9056-2e3a54767ce7",
+      "name": "Batch Commit Preparation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        80
+      ],
+      "notes": "Combine all files into single commit"
+    },
+    {
+      "parameters": {
+        "command": "=cd /tmp/financial-data 2>/dev/null || (git clone http://bud:71a66a53283123bdaed347243afdefc40bd87968@192.168.0.9:3002/bud/financial-data.git /tmp/financial-data && cd /tmp/financial-data && git config user.email n8n@automation && git config user.name 'n8n Automation') && cd /tmp/financial-data && git pull && mkdir -p 19a_notices && {{ $json.downloadCommands }} && {{ $json.addCommands }} && git commit -m \"{{ $json.commitMessage }}\" && git push && echo 'Success: committed {{ $json.count }} files'"
+      },
+      "id": "7acc1380-3be3-4d95-ad48-53dc2427d36f",
+      "name": "Commit to Gitea",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        720,
+        80
+      ],
+      "notes": "Commit all PDFs in single push",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "=✅ Committed: {{ $json.ticker }} - {{ $json.dateString }} to Gitea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "69c01b62-974b-4821-a202-e2a32b14b2d5",
+      "name": "Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        720,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger (or Schedule)": {
+      "main": [
+        [
+          {
+            "node": "Generate Latest 19a URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Latest 19a URLs": {
+      "main": [
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Filter Successful Downloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Successful Downloads": {
+      "main": [
+        [
+          {
+            "node": "Get Latest Per Ticker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Latest Per Ticker": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Batch Commit Preparation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write PDF to Temp": {
+      "main": [
+        [
+          {
+            "node": "Batch Commit Preparation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Commit Preparation": {
+      "main": [
+        [
+          {
+            "node": "Commit to Gitea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit to Gitea": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c584b3af-5e43-40a8-b93a-9ed3efa67bb5",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "id": "1eadEeBlatCgMgk1",
+  "tags": []
+}

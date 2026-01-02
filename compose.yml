@@ -534,6 +534,9 @@ services:
       - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
       # Obsidian vault for monthly summary generation
       - /Users/bud/home_space/obsidian-vault:/mnt/obsidian-vault
+      # Karakeep backup volumes
+      - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
+      - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
     ports:
       - "2223:22"
     restart: unless-stopped
