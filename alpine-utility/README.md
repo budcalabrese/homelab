@@ -5,10 +5,12 @@ A lightweight Alpine Linux container with SSH access and Docker CLI for running 
 ## Features
 
 - SSH server (port 2223)
-- Docker CLI with read-only socket access
+- Docker CLI with full socket access (for container control)
+- Automated backup scripts for Karakeep and Gitea
+- Budget export automation scripts
 - Monitoring script (`/scripts/docker-monitor.sh`)
 - Podcast file copy script (`/tmp/copy-podcast.sh`)
-- AudioBookshelf volume mount at `/mnt/audiobookshelf`
+- Multiple volume mounts for data access and backups
 - Lightweight: ~128MB memory usage
 
 ## Setup Instructions
@@ -158,10 +160,11 @@ Example output:
 ## Security Notes
 
 - SSH is exposed on port 2223
-- Docker socket is mounted read-only (`:ro`) for monitoring, but write access is available for `docker cp` operations
+- Docker socket has full read-write access (required for backup scripts to stop/start containers)
 - Change the default password in `.env`
 - Consider using SSH keys instead of password authentication for production
-- The AudioBookshelf volume is mounted at `/mnt/audiobookshelf` for podcast file delivery
+- Multiple data volumes are mounted (some read-only, some read-write)
+- Backup scripts can control Docker containers (stop/start Gitea for consistent backups)
 
 ## Troubleshooting
 

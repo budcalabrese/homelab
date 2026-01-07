@@ -1,0 +1,154 @@
+{
+  "name": "Gitea Daily Backup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        80
+      ],
+      "id": "cf4ff385-0343-4ac6-b66b-4ced14ad77f2",
+      "notes": "Runs daily at 3 AM"
+    },
+    {
+      "parameters": {
+        "command": "bash -c \"/scripts/export_gitea_backup.sh\""
+      },
+      "name": "SSH - Run Backup Script",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        80
+      ],
+      "id": "1786bcf0-ab22-4779-8954-c4d98a083a45",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      },
+      "continueOnFail": true,
+      "notes": "Executes gitea backup via SSH to alpine-utility"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-exit-code",
+              "leftValue": "={{ $json.code }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -208,
+        80
+      ],
+      "id": "111b9969-c0c9-4c4c-ae9a-d5dfc350b61e",
+      "name": "Check If Failed"
+    },
+    {
+      "parameters": {
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "❌ Gitea Backup Failed",
+        "emailFormat": "html",
+        "html": "=<h2>❌ Gitea Backup Failed</h2>\n<p><strong>Time:</strong> {{ $now.format('YYYY-MM-DD HH:mm:ss') }}</p>\n<p><strong>Exit Code:</strong> {{ $('SSH - Run Backup Script').first().json.code }}</p>\n<p><strong>Error Output:</strong></p>\n<pre style=\"background: #f5f5f5; padding: 10px; border: 1px solid #ddd;\">{{ $('SSH - Run Backup Script').first().json.stderr || 'No error output' }}</pre>\n<p><strong>Standard Output:</strong></p>\n<pre style=\"background: #f5f5f5; padding: 10px; border: 1px solid #ddd;\">{{ $('SSH - Run Backup Script').first().json.stdout || 'No output' }}</pre>",
+        "options": {}
+      },
+      "name": "Send Failure Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -48
+      ],
+      "id": "9504c7f9-07c3-47c1-93e4-a2d62ad89043",
+      "webhookId": "0208b31d-467e-4065-a063-9c856cdf9e5f",
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      },
+      "notes": "Send email alert if backup fails"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "SSH - Run Backup Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH - Run Backup Script": {
+      "main": [
+        [
+          {
+            "node": "Check If Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Failed": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "new-workflow-gitea-backup",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "tags": []
+}

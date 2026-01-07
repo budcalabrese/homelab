@@ -24,6 +24,34 @@ docker exec alpine-utility /scripts/export_karakeep_backup.sh
 ssh root@alpine-utility /scripts/export_karakeep_backup.sh
 ```
 
+### export_gitea_backup.sh
+Exports daily backups of Gitea database and repositories.
+
+**What it does:**
+- Backs up Gitea SQLite database using `sqlite3 .backup` command
+- Stops Gitea container for consistent repository backup
+- Creates zip archive of all Git repositories
+- Automatically restarts Gitea (guaranteed via trap, even if backup fails)
+- Keeps last 30 backups automatically
+- Outputs backup sizes and retention count
+
+**Triggered by:** n8n workflow `Gitea Daily Backup` (daily at 3:00 AM)
+
+**Backup locations:**
+- Database: `/mnt/backups/gitea/database/gitea-db-YYYY-MM-DD_HH-MM-SS.db`
+- Repositories: `/mnt/backups/gitea/repositories/gitea-repos-YYYY-MM-DD_HH-MM-SS.zip`
+
+**Manual execution:**
+```bash
+# From host
+docker exec alpine-utility /scripts/export_gitea_backup.sh
+
+# Or via SSH (from n8n or other containers)
+ssh root@alpine-utility /scripts/export_gitea_backup.sh
+```
+
+**Important:** This script requires Docker socket access (not read-only) to stop/start the Gitea container.
+
 ## Budget Export Scripts
 
 ### export_monthly_snapshot.sh
@@ -72,6 +100,9 @@ The alpine-utility container has these volume mounts:
 
 ```yaml
 volumes:
+  # Docker socket (read-write for container control)
+  - /var/run/docker.sock:/var/run/docker.sock
+
   # Scripts (git-tracked, live updates)
   - /Users/bud/home_space/homelab/alpine-utility/scripts:/scripts
 
@@ -85,9 +116,13 @@ volumes:
   # Karakeep data (read-only)
   - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
 
+  # Gitea data (read-only)
+  - /Volumes/docker/container_configs/gitea:/mnt/gitea:ro
+
   # Backup destinations (read-write)
   - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
   - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+  - /Volumes/backups/gitea:/mnt/backups/gitea
 
   # Financial data git repo (read-write)
   - /Users/bud/home_space/financial-data:/mnt/financial-data
@@ -118,6 +153,7 @@ docker exec alpine-utility /scripts/docker-monitor.sh
 
 Import these workflows into n8n:
 - `/Users/bud/home_space/homelab/n8n-workflows/Karakeep Daily Backup.json`
+- `/Users/bud/home_space/homelab/n8n-workflows/Gitea Daily Backup.json`
 - `/Users/bud/home_space/homelab/n8n-workflows/budget-export-main.json`
 - `/Users/bud/home_space/homelab/n8n-workflows/budget-export-gf.json`
 - `/Users/bud/home_space/homelab/n8n-workflows/Docker Health Monitor.json`
@@ -127,6 +163,12 @@ Import these workflows into n8n:
 1. Triggers daily at 2:00 AM
 2. Executes backup script via SSH to alpine-utility
 3. Sends email alert on failure only
+
+**Gitea Daily Backup:**
+1. Triggers daily at 3:00 AM
+2. Executes backup script via SSH to alpine-utility
+3. Sends email alert on failure only
+4. Keeps 30 days of database and repository backups
 
 **Budget Export workflows:**
 1. Trigger on days 28-31 of each month (11:55 PM and 11:57 PM respectively)
@@ -158,7 +200,8 @@ These scripts require:
 - `bc` - Basic calculator (already installed in alpine-utility)
 - `git` - Version control (already installed in alpine-utility)
 - `curl` - HTTP client (already installed in alpine-utility)
-- `wget` - File downloader (already installed in alpine-utility)
+- `docker-cli` - Docker command line (already installed in alpine-utility)
+- `zip` - Archive utility (already installed in alpine-utility)
 
 ## Troubleshooting
 

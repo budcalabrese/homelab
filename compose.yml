@@ -524,7 +524,7 @@ services:
     env_file: env/.env
     hostname: alpine-utility
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - /Volumes/docker/container_configs/alpine-utility:/config
       - /Users/bud/home_space/homelab/alpine-utility/scripts:/scripts
       - /Volumes/docker/container_configs/audiobookshelf/podcasts:/mnt/audiobookshelf
@@ -537,6 +537,9 @@ services:
       # Karakeep backup volumes
       - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
       - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+      # Gitea backup volumes
+      - /Volumes/docker/container_configs/gitea:/mnt/gitea:ro
+      - /Volumes/backups/gitea:/mnt/backups/gitea
     ports:
       - "2223:22"
     restart: unless-stopped
