@@ -1,0 +1,363 @@
+{
+  "name": "News Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -336,
+        -128
+      ],
+      "id": "6b825ceb-9cc3-4457-a90f-26fea61281f0",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.rss }}",
+        "options": {
+          "customFields": "User-Agent"
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        -128
+      ],
+      "id": "2fdaf31f-e191-47f5-92b8-fdf93856c276",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.original_title }}\n\n{{ $json.original_content }}\n\nWrite ONLY 3 sentences maximum explaining what was announced:",
+        "options": {
+          "systemMessage": "You write ultra-brief news summaries. MAXIMUM 3 sentences. NO bullet points. NO sections. NO headings. Just a plain 3-sentence paragraph stating what was announced and why it matters. That's it."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        16
+      ],
+      "id": "13fa4c2e-cff5-4e10-bac0-fcdb2e0b121d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "458d05dc-202b-4097-a722-cf9fd6daf8a6",
+              "name": "original_title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "6075300e-127a-428a-a445-c2151ba3cf58",
+              "name": "original_link",
+              "value": "={{ $json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "30557b3d-a583-41cc-b408-15e2382f1593",
+              "name": "original_content",
+              "value": "={{ $json['content:encodedSnippet'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        -128
+      ],
+      "id": "d535a8fe-e86a-4142-ac86-aa6f72a87f8d",
+      "name": "Edit Fields - Save originals"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1184,
+        -112
+      ],
+      "id": "e68cd577-0339-4156-9453-8c08f7a41563",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2d7aab64-0a07-4425-a601-da5cf1407730",
+              "name": "rss",
+              "value": "[\n\"https://aws.amazon.com/blogs/aws-insights/feed/\",\n\"https://aws.amazon.com/blogs/aws/feed/\",\n\"https://aws.amazon.com/blogs/machine-learning/feed/\"\n]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -112,
+        -128
+      ],
+      "id": "aa006f55-25f9-42a1-8bd8-34d5b3fc5de3",
+      "name": "Edit Fields - RSS Feeds"
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        864,
+        224
+      ],
+      "id": "5431f542-cd6f-468d-9089-801fdcc16479",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "drSqqBR7K2QUuRtu",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "rss",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        96,
+        -128
+      ],
+      "id": "d4d115d7-d0a8-4920-8e53-b62c4281f7ea",
+      "name": "Split Out - RSS feeds"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0fd4da78-08af-4b5b-986b-0fdd494e21b9",
+              "leftValue": "={{ DateTime.fromRFC2822($json.pubDate).toFormat('yyyy-MM-dd') }}",
+              "rightValue": "={{ DateTime.now().minus({ days: 1 }).toFormat('yyyy-MM-dd') }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        496,
+        -128
+      ],
+      "id": "d15bae33-7657-47f6-afde-79056f9f21a2",
+      "name": "24 Hour Filter"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input items\nconst stories = $input.all();\n\n// Format today's date\nconst today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });\n\n// Start building the HTML email\nlet digest = `<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; background-color: #f5f5f5; }\n    .container { background-color: white; }\n    .header { background-color: white; padding: 40px 30px 20px 30px; border-bottom: 1px solid #e0e0e0; }\n    .header h1 { margin: 0; font-size: 28px; color: #1a1a1a; font-weight: 600; }\n    .header p { margin: 8px 0 0 0; color: #666; font-size: 14px; }\n    .content { padding: 20px 30px; }\n    .section-title { font-size: 20px; font-weight: 600; color: #1a1a1a; margin: 30px 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }\n    .article { margin: 25px 0; padding-bottom: 25px; border-bottom: 1px solid #f0f0f0; }\n    .article:last-child { border-bottom: none; }\n    .article-title { font-size: 16px; font-weight: 600; margin: 0 0 12px 0; color: #0066cc; line-height: 1.4; }\n    .article-summary { margin: 0 0 12px 0; color: #333; font-size: 15px; line-height: 1.6; }\n    .article-link { color: #0066cc; text-decoration: none; font-size: 14px; font-weight: 500; }\n    .article-link:hover { text-decoration: underline; }\n    .footer { text-align: center; padding: 30px; color: #999; font-size: 12px; background-color: #fafafa; border-top: 1px solid #e0e0e0; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📰 Daily Tech News Digest</h1>\n      <p>${today}</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"section-title\">🚀 Headlines & Launches</div>`;\n\n// Loop through each story\nfor (const story of stories) {\n  // Get the data from each story\n  const title = story.json.original_title || 'Untitled';\n  const summary = story.json.output || 'No summary available';\n  const link = story.json.original_link || '#';\n  \n  // Skip articles with confused summaries\n  if (summary.includes('Could you please') || \n      summary.includes(\"I don't have access\") || \n      summary.includes('I can help summarize')) {\n    continue;\n  }\n  \n  // Add article HTML\n  digest += `\n      <div class=\"article\">\n        <div class=\"article-title\">${title}</div>\n        <div class=\"article-summary\">${summary}</div>\n        <a href=\"${link}\" class=\"article-link\">Read more →</a>\n      </div>`;\n}\n\n// Close the HTML\ndigest += `\n    </div>\n    <div class=\"footer\">\n      <p>This email was sent automatically with n8n</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\n// Return the result\nreturn [{ json: { message: digest } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -112
+      ],
+      "id": "44ac0931-be47-4887-8418-da13e57bca3b",
+      "name": "Code - Daily Summary"
+    },
+    {
+      "parameters": {
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "Cloud Tech Digest",
+        "html": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "70375d27-cc11-4464-b995-c0db6777a649",
+      "name": "Send email",
+      "webhookId": "5c7e02d6-102f-483f-921f-e893e4540c77",
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields - RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "24 Hour Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields - Save originals": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code - Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields - RSS Feeds": {
+      "main": [
+        [
+          {
+            "node": "Split Out - RSS feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out - RSS feeds": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24 Hour Filter": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields - Save originals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "137608f0-01f5-46f7-a848-fc7bbb68471f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "id": "I6MhdDxO0REKPRHH",
+  "tags": []
+}
