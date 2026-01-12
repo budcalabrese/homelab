@@ -27,3 +27,6 @@ docker image prune -a -f
 
 # updating homebrew packages
 brew update && brew upgrade && brew cleanup && brew doctor  
+
+# updating claude code
+npm install -g @anthropic-ai/claude-code@latest

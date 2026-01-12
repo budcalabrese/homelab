@@ -120,6 +120,9 @@ services:
 
       # Webhook Configuration
       - WEBHOOK_URL=http://host.docker.internal:5678/
+
+      # Task Runner Configuration
+      - N8N_RUNNERS_TASK_REQUEST_TIMEOUT=300000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
