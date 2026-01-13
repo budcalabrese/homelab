@@ -110,7 +110,7 @@
             {
               "id": "2d7aab64-0a07-4425-a601-da5cf1407730",
               "name": "rss",
-              "value": "[\n\"https://aws.amazon.com/blogs/aws-insights/feed/\",\n\"https://aws.amazon.com/blogs/aws/feed/\",\n\"https://aws.amazon.com/blogs/machine-learning/feed/\"\n]",
+              "value": "[\"https://aws.amazon.com/blogs/aws-insights/feed/\", \"https://aws.amazon.com/blogs/aws/feed/\", \"https://aws.amazon.com/blogs/machine-learning/feed/\"]",
               "type": "array"
             }
           ]
