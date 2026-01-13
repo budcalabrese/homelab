@@ -1,0 +1,103 @@
+{
+  "name": "Centralized Error Notification",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "error-trigger-node",
+      "notes": "Automatically triggered when any linked workflow fails"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract error details from the trigger\nconst errorData = $input.first().json;\n\n// Get workflow information\nconst workflowName = errorData.workflow?.name || 'Unknown Workflow';\nconst workflowId = errorData.workflow?.id || 'Unknown ID';\nconst executionId = errorData.execution?.id || 'Unknown Execution';\n\n// Get error details\nconst errorMessage = errorData.error?.message || 'No error message provided';\nconst errorNode = errorData.node?.name || 'Unknown Node';\nconst errorStack = errorData.error?.stack || '';\nconst errorTimestamp = new Date().toLocaleString('en-US', { \n  timeZone: 'America/Chicago',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit',\n  hour12: true\n});\n\n// Get execution mode (trigger vs manual)\nconst executionMode = errorData.execution?.mode || 'unknown';\n\n// Format the HTML email\nlet html = '<div style=\"font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;\">';\nhtml += '<div style=\"background-color: #dc3545; color: white; padding: 20px; border-radius: 5px 5px 0 0;\">';\nhtml += '<h1 style=\"margin: 0; font-size: 24px;\">❌ n8n Workflow Failed</h1>';\nhtml += '</div>';\n\nhtml += '<div style=\"background-color: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; border-top: none;\">';\n\n// Workflow Information\nhtml += '<h2 style=\"color: #495057; font-size: 18px; margin-top: 0;\">📋 Workflow Information</h2>';\nhtml += '<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 20px;\">';\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold; width: 150px;\">Workflow:</td><td style=\"padding: 8px;\">${workflowName}</td></tr>`;\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold;\">Workflow ID:</td><td style=\"padding: 8px;\">${workflowId}</td></tr>`;\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold;\">Execution ID:</td><td style=\"padding: 8px;\">${executionId}</td></tr>`;\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold;\">Execution Mode:</td><td style=\"padding: 8px;\">${executionMode}</td></tr>`;\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold;\">Time:</td><td style=\"padding: 8px;\">${errorTimestamp} CST</td></tr>`;\nhtml += '</table>';\n\n// Error Details\nhtml += '<h2 style=\"color: #dc3545; font-size: 18px;\">🚨 Error Details</h2>';\nhtml += '<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 20px;\">';\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold; width: 150px;\">Failed Node:</td><td style=\"padding: 8px;\">${errorNode}</td></tr>`;\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold; vertical-align: top;\">Error Message:</td><td style=\"padding: 8px;\"><pre style=\"margin: 0; white-space: pre-wrap; word-wrap: break-word; background: #fff; padding: 10px; border: 1px solid #dee2e6; border-radius: 3px;\">${errorMessage}</pre></td></tr>`;\nhtml += '</table>';\n\n// Stack Trace (collapsible)\nif (errorStack) {\n  html += '<details style=\"margin-bottom: 20px;\">';\n  html += '<summary style=\"cursor: pointer; font-weight: bold; color: #6c757d;\">📄 Stack Trace (click to expand)</summary>';\n  html += `<pre style=\"margin-top: 10px; white-space: pre-wrap; word-wrap: break-word; background: #fff; padding: 10px; border: 1px solid #dee2e6; border-radius: 3px; font-size: 12px; max-height: 300px; overflow-y: auto;\">${errorStack}</pre>`;\n  html += '</details>';\n}\n\n// Quick Actions\nhtml += '<h2 style=\"color: #495057; font-size: 18px;\">🔧 Quick Actions</h2>';\nhtml += '<div style=\"margin-bottom: 20px;\">';\nhtml += `<a href=\"http://localhost:5678/workflow/${workflowId}\" style=\"display: inline-block; background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;\">View Workflow</a>`;\nhtml += `<a href=\"http://localhost:5678/execution/${executionId}\" style=\"display: inline-block; background-color: #6c757d; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">View Execution</a>`;\nhtml += '</div>';\n\nhtml += '</div>';\n\n// Footer\nhtml += '<div style=\"background-color: #e9ecef; padding: 15px; text-align: center; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 5px 5px; color: #6c757d; font-size: 12px;\">';\nhtml += 'This is an automated notification from your n8n instance';\nhtml += '</div>';\nhtml += '</div>';\n\n// Return formatted data\nreturn {\n  json: {\n    workflowName,\n    workflowId,\n    executionId,\n    errorNode,\n    errorMessage,\n    errorTimestamp,\n    emailSubject: `❌ n8n Workflow Failed: ${workflowName}`,\n    emailBody: html,\n    rawError: errorData\n  }\n};"
+      },
+      "name": "Format Error Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "id": "format-error-node",
+      "notes": "Extracts and formats error information into HTML email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "={{ $json.emailSubject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "name": "Send Error Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "send-email-node",
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      },
+      "notes": "Sends error notification email"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Details": {
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "centralized-error-notification",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "tags": [
+    {
+      "createdAt": "2026-01-13T15:00:00.000Z",
+      "updatedAt": "2026-01-13T15:00:00.000Z",
+      "id": "error-handling",
+      "name": "error-handling"
+    },
+    {
+      "createdAt": "2026-01-13T15:00:00.000Z",
+      "updatedAt": "2026-01-13T15:00:00.000Z",
+      "id": "monitoring",
+      "name": "monitoring"
+    }
+  ]
+}
