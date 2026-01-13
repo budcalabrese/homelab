@@ -56,9 +56,16 @@ for CONTAINER in $CONTAINERS; do
     fi
 
     # Count errors and warnings
-    ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -icE "(error|fatal|exception|failed)" 2>/dev/null || echo "0")
-    ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
-    ERROR_COUNT=${ERROR_COUNT:-0}
+    # For SearXNG: exclude harmless engine configuration errors at startup
+    if [ "$CONTAINER" = "searxng" ]; then
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(loading engine|Cannot load engine|Engine setup was not successful|set engine to inactive|X-Forwarded-For|FileNotFoundError.*engines/|wikicommons.*wc_search_type)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs)
+        ERROR_COUNT=${ERROR_COUNT:-0}
+    else
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -icE "(error|fatal|exception|failed)" 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+        ERROR_COUNT=${ERROR_COUNT:-0}
+    fi
 
     WARN_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -icE "(warn|warning)" 2>/dev/null || echo "0")
     WARN_COUNT=$(echo "$WARN_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
