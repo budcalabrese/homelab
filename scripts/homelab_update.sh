@@ -30,3 +30,7 @@ brew update && brew upgrade && brew cleanup && brew doctor
 
 # updating claude code
 npm install -g @anthropic-ai/claude-code@latest
+
+# sync obsidian vault to github
+echo "Syncing Obsidian vault to GitHub"
+/Users/bud/home_space/obsidian-vault/sync-obsidian.sh

@@ -6,6 +6,15 @@
 # Get current timestamp
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+# Check if we're in Gitea backup maintenance window (2:00-2:15 AM CST = 8:00-8:15 AM UTC)
+CURRENT_HOUR=$(date -u +%H)
+CURRENT_MINUTE=$(date -u +%M)
+GITEA_MAINTENANCE=false
+
+if [ "$CURRENT_HOUR" = "08" ] && [ "$CURRENT_MINUTE" -ge 0 ] && [ "$CURRENT_MINUTE" -le 15 ]; then
+    GITEA_MAINTENANCE=true
+fi
+
 # Start JSON output
 echo "{"
 echo "  \"timestamp\": \"$TIMESTAMP\","
@@ -16,6 +25,11 @@ CONTAINERS=$(docker ps -a --format '{{.Names}}')
 FIRST=true
 
 for CONTAINER in $CONTAINERS; do
+    # Skip Gitea during maintenance window
+    if [ "$CONTAINER" = "gitea" ] && [ "$GITEA_MAINTENANCE" = "true" ]; then
+        continue
+    fi
+
     if [ "$FIRST" = false ]; then
         echo "    ,"
     fi
@@ -79,26 +93,35 @@ done
 echo ""
 echo "  ],"
 
-# Check Gitea health
-GITEA_URL="http://192.168.0.9:3002/api/healthz"
-GITEA_RESPONSE=$(curl -s -m 5 "$GITEA_URL" 2>/dev/null)
-GITEA_STATUS=$(echo "$GITEA_RESPONSE" | jq -r '.status' 2>/dev/null)
-GITEA_STATUS=${GITEA_STATUS:-error}
-[ -z "$GITEA_STATUS" ] && GITEA_STATUS="error"
-GITEA_CACHE=$(echo "$GITEA_RESPONSE" | jq -r '.checks."cache:ping"[0].status' 2>/dev/null)
-GITEA_CACHE=${GITEA_CACHE:-error}
-[ -z "$GITEA_CACHE" ] && GITEA_CACHE="error"
-GITEA_DB=$(echo "$GITEA_RESPONSE" | jq -r '.checks."database:ping"[0].status' 2>/dev/null)
-GITEA_DB=${GITEA_DB:-error}
-[ -z "$GITEA_DB" ] && GITEA_DB="error"
-
-# Determine if Gitea is healthy
-if [ "$GITEA_STATUS" = "pass" ] && [ "$GITEA_CACHE" = "pass" ] && [ "$GITEA_DB" = "pass" ]; then
+# Check Gitea health (skip during maintenance window)
+if [ "$GITEA_MAINTENANCE" = "true" ]; then
+    # During maintenance, report as healthy to avoid false alerts
+    GITEA_STATUS="maintenance"
+    GITEA_CACHE="maintenance"
+    GITEA_DB="maintenance"
     GITEA_HEALTHY="true"
     GITEA_ERROR="false"
 else
-    GITEA_HEALTHY="false"
-    GITEA_ERROR="true"
+    GITEA_URL="http://192.168.0.9:3002/api/healthz"
+    GITEA_RESPONSE=$(curl -s -m 5 "$GITEA_URL" 2>/dev/null)
+    GITEA_STATUS=$(echo "$GITEA_RESPONSE" | jq -r '.status' 2>/dev/null)
+    GITEA_STATUS=${GITEA_STATUS:-error}
+    [ -z "$GITEA_STATUS" ] && GITEA_STATUS="error"
+    GITEA_CACHE=$(echo "$GITEA_RESPONSE" | jq -r '.checks."cache:ping"[0].status' 2>/dev/null)
+    GITEA_CACHE=${GITEA_CACHE:-error}
+    [ -z "$GITEA_CACHE" ] && GITEA_CACHE="error"
+    GITEA_DB=$(echo "$GITEA_RESPONSE" | jq -r '.checks."database:ping"[0].status' 2>/dev/null)
+    GITEA_DB=${GITEA_DB:-error}
+    [ -z "$GITEA_DB" ] && GITEA_DB="error"
+
+    # Determine if Gitea is healthy
+    if [ "$GITEA_STATUS" = "pass" ] && [ "$GITEA_CACHE" = "pass" ] && [ "$GITEA_DB" = "pass" ]; then
+        GITEA_HEALTHY="true"
+        GITEA_ERROR="false"
+    else
+        GITEA_HEALTHY="false"
+        GITEA_ERROR="true"
+    fi
 fi
 
 echo "  \"gitea\": {"

@@ -13,7 +13,7 @@ Exports daily backups of the Karakeep SQLite database and data directory.
 - Keeps last 7 backups automatically
 - Outputs backup size and retention count
 
-**Triggered by:** n8n workflow `Karakeep Daily Backup` (daily at 2:00 AM)
+**Triggered by:** n8n workflow `Karakeep Daily Backup` (daily at 8:00 PM CST / 2:00 AM UTC)
 
 **Manual execution:**
 ```bash
@@ -35,7 +35,9 @@ Exports daily backups of Gitea database and repositories.
 - Keeps last 30 backups automatically
 - Outputs backup sizes and retention count
 
-**Triggered by:** n8n workflow `Gitea Daily Backup` (daily at 3:00 AM)
+**Triggered by:** n8n workflow `Gitea Daily Backup` (daily at 2:00 AM CST / 8:00 AM UTC)
+
+**Downtime:** Expected 5-10 minutes during backup (Gitea stopped for repository backup)
 
 **Backup locations:**
 - Database: `/mnt/backups/gitea/database/gitea-db-YYYY-MM-DD_HH-MM-SS.db`
@@ -138,10 +140,18 @@ Monitors health of all Docker containers and Gitea instance.
 **What it does:**
 - Checks health status of all Docker containers
 - Monitors Gitea API health endpoint (`/api/healthz`)
+- Scans last 24h logs for errors and warnings
 - Outputs JSON format with container and Gitea health
 - Reports errors, restarts, and unhealthy containers
+- **Maintenance Window**: Skips Gitea monitoring during backup (2:00-2:15 AM CST / 8:00-8:15 AM UTC)
 
-**Triggered by:** n8n workflow `Docker Health Monitor` (every 5 minutes)
+**Triggered by:** n8n workflow `Docker Health Monitor` (every 15 minutes)
+
+**Alert Thresholds:**
+- **Restart Loop**: 2+ restarts within last hour
+- **Errors**: Any errors found in last 24h logs
+- **Health**: Container health check failing
+- **Stopped**: Container not running (except during maintenance)
 
 **Manual execution:**
 ```bash
@@ -177,9 +187,9 @@ Import these workflows into n8n:
 4. Send notification (optional - replace noOp nodes with Discord/Slack/etc.)
 
 **Docker Health Monitor:**
-1. Triggers every 5 minutes
+1. Triggers every 15 minutes
 2. Runs docker-monitor.sh via SSH
-3. Sends email alert if any containers or Gitea are unhealthy
+3. Sends email alert if any containers or Gitea are unhealthy (skips alerts during 2:00-2:15 AM CST maintenance window)
 
 **SPYI & QQQI 19a Downloader:**
 1. Downloads SEC 19a notices for SPYI and QQQI funds
