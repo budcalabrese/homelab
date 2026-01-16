@@ -21,14 +21,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get previous month (since we run on 1st to summarize last month)\nconst now = new Date();\nconst lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst year = lastMonth.getFullYear();\nconst yearShort = String(year).slice(-2);\nconst month = String(lastMonth.getMonth() + 1).padStart(2, '0');\nconst monthName = lastMonth.toLocaleString('default', { month: 'long' });\n\nreturn [{\n  json: {\n    year: year,\n    yearShort: yearShort,\n    month: month,\n    monthName: monthName,\n    summaryFileName: `Summary-${month}-${yearShort}.md`\n  }\n}];"
+        "jsCode": "// Get previous month (since we run on 1st to summarize last month)\nconst now = new Date();\nconst lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst year = lastMonth.getFullYear();\nconst yearShort = String(year).slice(-2);\nconst month = String(lastMonth.getMonth() + 1).padStart(2, '0');\nconst monthName = lastMonth.toLocaleString('default', { month: 'long' });\n\nreturn [{\n  json: {\n    year: year,\n    yearShort: yearShort,\n    month: month,\n    monthName: monthName,\n    summaryFileName: `Summary-${month}-${yearShort}.md`,\n    archivePath: `${year}/${month}-${monthName}`\n  }\n}];"
       },
       "id": "c732a9d3-a401-45a8-86c2-b5ae0ea771a8",
       "name": "Calculate Month Details",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 300],
-      "notes": "Determine current month and file paths"
+      "notes": "Determine current month and file paths including archive location"
     },
     {
       "parameters": {
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get AI Agent output\nconst aiOutput = $input.first().json;\nconst summary = aiOutput.output || \"Summary generation failed\";\n\n// Get month data\nconst monthData = $('Calculate Month Details').first().json;\nconst fileCount = $('Parse Weekly Note Files').first().json.fileCount;\n\n// Build the final markdown file\nconst finalContent = `${summary}\\n\\n---\\n\\n## Metadata\\n\\n- **Generated**: ${new Date().toISOString()}\\n- **Source**: ${fileCount} weekly notes\\n- **AI Model**: qwen2.5:7b via Ollama\\n\\n---\\ntags: #monthlysummary #${monthData.year} #${monthData.monthName.toLowerCase()}`;\n\n// Escape content for safe shell usage - use base64 encoding\nconst contentBase64 = Buffer.from(finalContent).toString('base64');\n\nreturn [{\n  json: {\n    content: finalContent,\n    contentBase64: contentBase64,\n    fileName: monthData.summaryFileName,\n    monthName: monthData.monthName,\n    year: monthData.year,\n    yearShort: monthData.yearShort,\n    month: monthData.month\n  }\n}];"
+        "jsCode": "// Get AI Agent output\nconst aiOutput = $input.first().json;\nconst summary = aiOutput.output || \"Summary generation failed\";\n\n// Get month data\nconst monthData = $('Calculate Month Details').first().json;\nconst fileCount = $('Parse Weekly Note Files').first().json.fileCount;\n\n// Build the final markdown file\nconst finalContent = `${summary}\\n\\n---\\n\\n## Metadata\\n\\n- **Generated**: ${new Date().toISOString()}\\n- **Source**: ${fileCount} weekly notes\\n- **AI Model**: qwen2.5:7b via Ollama\\n\\n---\\ntags: #monthlysummary #${monthData.year} #${monthData.monthName.toLowerCase()}`;\n\n// Escape content for safe shell usage - use base64 encoding\nconst contentBase64 = Buffer.from(finalContent).toString('base64');\n\nreturn [{\n  json: {\n    content: finalContent,\n    contentBase64: contentBase64,\n    fileName: monthData.summaryFileName,\n    monthName: monthData.monthName,\n    year: monthData.year,\n    yearShort: monthData.yearShort,\n    month: monthData.month,\n    archivePath: monthData.archivePath\n  }\n}];"
       },
       "id": "e0045783-13fb-430a-976d-bee14aaa1547",
       "name": "Format Monthly Summary",
@@ -154,6 +154,51 @@
           "name": "SSH Password account"
         }
       }
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p \"/mnt/obsidian-vault/Weekly Notes/{{ $json.archivePath }}\" && echo \"Archive folder created: {{ $json.archivePath }}\""
+      },
+      "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "name": "Create Archive Folder",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [2220, 200],
+      "notes": "Create year/month folder structure for archiving",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=mv /mnt/obsidian-vault/Weekly\\ Notes/Week-{{ $('Calculate Month Details').first().json.month }}-*.md \"/mnt/obsidian-vault/Weekly Notes/{{ $json.archivePath }}/\" && echo \"Moved {{ $('Parse Weekly Note Files').first().json.fileCount }} files to {{ $json.archivePath }}\""
+      },
+      "id": "b2c3d4e5-f6a7-5b6c-9d0e-1f2a3b4c5d6e",
+      "name": "Archive Weekly Notes",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [2440, 200],
+      "notes": "Move weekly notes to year/month archive folder",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const monthData = $('Calculate Month Details').first().json;\nconst fileCount = $('Parse Weekly Note Files').first().json.fileCount;\nconst summaryFile = $json.fileName;\nconst archivePath = $json.archivePath;\n\nreturn [{\n  json: {\n    success: true,\n    message: `Monthly summary complete for ${monthData.monthName} ${monthData.year}`,\n    details: {\n      summaryFile: summaryFile,\n      archivedFiles: fileCount,\n      archiveLocation: `Weekly Notes/${archivePath}/`,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "c3d4e5f6-a7b8-6c7d-0e1f-2a3b4c5d6e7f",
+      "name": "Build Success Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 200],
+      "notes": "Create final success message with details"
     }
   ],
   "pinData": {},
@@ -186,6 +231,15 @@
       "main": [[{ "node": "Write Summary File", "type": "main", "index": 0 }]]
     },
     "Write Summary File": {
+      "main": [[{ "node": "Create Archive Folder", "type": "main", "index": 0 }]]
+    },
+    "Create Archive Folder": {
+      "main": [[{ "node": "Archive Weekly Notes", "type": "main", "index": 0 }]]
+    },
+    "Archive Weekly Notes": {
+      "main": [[{ "node": "Build Success Report", "type": "main", "index": 0 }]]
+    },
+    "Build Success Report": {
       "main": []
     }
   },
@@ -193,7 +247,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "7",
+  "versionId": "8",
   "id": "IPH0u8ia30GKVgo8",
   "meta": {
     "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
