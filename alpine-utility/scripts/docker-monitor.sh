@@ -61,6 +61,21 @@ for CONTAINER in $CONTAINERS; do
         ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(loading engine|Cannot load engine|Engine setup was not successful|set engine to inactive|X-Forwarded-For|FileNotFoundError.*engines/|wikicommons.*wc_search_type)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs)
         ERROR_COUNT=${ERROR_COUNT:-0}
+    # For n8n: exclude workflow activation messages and Python task runner warnings
+    elif [ "$CONTAINER" = "n8n" ]; then
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(Activated workflow|Failed to start Python task runner in internal mode)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+        ERROR_COUNT=${ERROR_COUNT:-0}
+    # For tailscale: exclude TPM and startup warming errors
+    elif [ "$CONTAINER" = "tailscale" ]; then
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(TPM: error opening|warnable=warming-up|warnable=login-state.*context canceled)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+        ERROR_COUNT=${ERROR_COUNT:-0}
+    # For karakeep-chrome: exclude D-Bus connection errors (normal for headless Chrome)
+    elif [ "$CONTAINER" = "karakeep-chrome" ]; then
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(Failed to connect to the bus|system_bus_socket)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+        ERROR_COUNT=${ERROR_COUNT:-0}
     else
         ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -icE "(error|fatal|exception|failed)" 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
