@@ -76,6 +76,11 @@ for CONTAINER in $CONTAINERS; do
         ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(Failed to connect to the bus|system_bus_socket)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
         ERROR_COUNT=${ERROR_COUNT:-0}
+    # For karakeep: exclude search query URLs that contain "error" in the query string
+    elif [ "$CONTAINER" = "karakeep" ]; then
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(searchQueryString=|report_error|preset=ERROR|error_code=|error_description=)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+        ERROR_COUNT=${ERROR_COUNT:-0}
     else
         ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -icE "(error|fatal|exception|failed)" 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
