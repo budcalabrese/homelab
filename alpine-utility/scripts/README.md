@@ -54,6 +54,10 @@ ssh root@alpine-utility /scripts/export_gitea_backup.sh
 
 **Important:** This script requires Docker socket access (not read-only) to stop/start the Gitea container.
 
+**Troubleshooting:**
+- **"Error: database is locked"** - This means Gitea is still running during database backup. The script stops Gitea first specifically to prevent this. If you see this error, verify the script is stopping Gitea before the `cp` command.
+- **Do NOT use `sqlite3 .backup`** - This command fails with lock errors when backing up an actively-used SQLite database. Always stop Gitea first and use direct file copy.
+
 ## Budget Export Scripts
 
 ### export_monthly_snapshot.sh

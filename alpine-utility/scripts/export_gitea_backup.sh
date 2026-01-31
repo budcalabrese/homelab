@@ -23,6 +23,10 @@ echo "Gitea Backup - ${TIMESTAMP}"
 echo "========================================"
 
 # Stop Gitea for consistent backup
+# IMPORTANT: We MUST stop Gitea before backing up the database to avoid "database is locked" errors.
+# SQLite cannot be reliably backed up while the application is actively writing to it.
+# Previous approach (using sqlite3 .backup while Gitea running) failed with lock errors.
+# Current approach (stop Gitea, cp database file) is reliable and safe.
 echo "[1/3] Stopping Gitea for consistent backup..."
 docker stop gitea
 
