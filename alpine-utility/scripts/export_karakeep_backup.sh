@@ -43,7 +43,17 @@ if [ $? -eq 0 ]; then
     # Keep only last 7 backups (delete older ones)
     echo "Cleaning up old backups (keeping last 7)..."
     cd "$BACKUP_DIR" || exit 1
-    ls -t | tail -n +8 | xargs -r rm -rf
+
+    # Find and delete old backups, handling permission errors gracefully
+    ls -t | tail -n +8 | while read -r backup_dir; do
+        if [ -d "$backup_dir" ]; then
+            # Try to fix permissions first, then remove
+            chmod -R u+w "$backup_dir" 2>/dev/null || true
+            rm -rf "$backup_dir" 2>/dev/null || {
+                echo "  Warning: Could not fully remove $backup_dir (permission issues)"
+            }
+        fi
+    done
 
     REMAINING=$(ls -1 | wc -l)
     echo "  Backups retained: $REMAINING"

@@ -35,7 +35,7 @@ Exports daily backups of Gitea database and repositories.
 - Keeps last 30 backups automatically
 - Outputs backup sizes and retention count
 
-**Triggered by:** n8n workflow `Gitea Daily Backup` (daily at 2:00 AM CST / 8:00 AM UTC)
+**Triggered by:** n8n workflow `Gitea Daily Backup` (daily at 3:00 AM CST / 9:00 AM UTC)
 
 **Downtime:** Expected 5-10 minutes during backup (Gitea stopped for repository backup)
 
@@ -123,7 +123,7 @@ volumes:
 
   # Backup destinations (read-write)
   - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
-  - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+  - /Volumes/backups/karakeep:/mnt/backups/karakeep
   - /Volumes/backups/gitea:/mnt/backups/gitea
 
   # Financial data git repo (read-write)
@@ -145,7 +145,7 @@ Monitors health of all Docker containers and Gitea instance.
 - Reports errors, restarts, and unhealthy containers
 - **Maintenance Window**: Skips Gitea monitoring during backup (2:00-2:15 AM CST / 8:00-8:15 AM UTC)
 
-**Triggered by:** n8n workflow `Docker Health Monitor` (every 15 minutes)
+**Triggered by:** n8n workflow `Docker Health Monitor` (twice daily at 9 AM and 5 PM)
 
 **Alert Thresholds:**
 - **Restart Loop**: 2+ restarts within last hour

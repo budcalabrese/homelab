@@ -58,7 +58,7 @@ for CONTAINER in $CONTAINERS; do
     # Count errors and warnings
     # For SearXNG: exclude harmless engine configuration errors at startup
     if [ "$CONTAINER" = "searxng" ]; then
-        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(loading engine|Cannot load engine|Engine setup was not successful|set engine to inactive|X-Forwarded-For|FileNotFoundError.*engines/|wikicommons.*wc_search_type)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 200 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(loading engine|Cannot load engine|Engine setup was not successful|set engine to inactive|X-Forwarded-For|FileNotFoundError.*engines/|wikicommons.*wc_search_type|has been disabled because the engine|inactive engine|starting engine|disabled because|disabled - error|engine has an incorrect configuration|missing required config|ValueError.*base_url)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs)
         ERROR_COUNT=${ERROR_COUNT:-0}
     # For n8n: exclude workflow activation messages and Python task runner warnings

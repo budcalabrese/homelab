@@ -7,7 +7,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "*/15 * * * *"
+              "expression": "0 9,17 * * *"
             }
           ]
         }
@@ -20,7 +20,7 @@
         0
       ],
       "id": "e38ed0fb-074e-4f2d-a28f-b47ee9d22df0",
-      "notes": "Runs every 15 minutes"
+      "notes": "Runs twice daily at 9 AM and 5 PM"
     },
     {
       "parameters": {

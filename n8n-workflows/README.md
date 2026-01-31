@@ -101,7 +101,7 @@ This directory contains all n8n workflow JSON files for homelab automation.
 
 #### How It Works
 
-**Schedule**: Every 5 minutes (`*/5 * * * *`)
+**Schedule**: Twice daily at 9 AM and 5 PM (`0 9,17 * * *`)
 
 **What it does**:
 1. Executes `/scripts/docker-monitor.sh` via SSH to alpine-utility
@@ -148,7 +148,7 @@ This directory contains all n8n workflow JSON files for homelab automation.
   ```yaml
   volumes:
     - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
-    - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+    - /Volumes/backups/karakeep:/mnt/backups/karakeep
   ```
 - Backup script: `/scripts/export_karakeep_backup.sh`
 

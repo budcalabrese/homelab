@@ -539,7 +539,7 @@ services:
       - /Users/bud/home_space/obsidian-vault:/mnt/obsidian-vault
       # Karakeep backup volumes
       - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
-      - /Volumes/docker/backups/karakeep:/mnt/backups/karakeep
+      - /Volumes/backups/karakeep:/mnt/backups/karakeep
       # Gitea backup volumes
       - /Volumes/docker/container_configs/gitea:/mnt/gitea:ro
       - /Volumes/backups/gitea:/mnt/backups/gitea
