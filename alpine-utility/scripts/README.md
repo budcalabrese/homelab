@@ -28,8 +28,8 @@ ssh root@alpine-utility /scripts/export_karakeep_backup.sh
 Exports daily backups of Gitea database and repositories.
 
 **What it does:**
-- Backs up Gitea SQLite database using `sqlite3 .backup` command
-- Stops Gitea container for consistent repository backup
+- Stops Gitea container to prevent database lock issues
+- Backs up Gitea SQLite database using direct file copy (safe while stopped)
 - Creates zip archive of all Git repositories
 - Automatically restarts Gitea (guaranteed via trap, even if backup fails)
 - Keeps last 30 backups automatically

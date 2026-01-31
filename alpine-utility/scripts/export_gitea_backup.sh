@@ -22,18 +22,10 @@ echo "========================================"
 echo "Gitea Backup - ${TIMESTAMP}"
 echo "========================================"
 
-# Backup database directly using sqlite3
-echo "[1/3] Backing up Gitea database..."
-docker exec gitea sqlite3 /data/gitea/gitea.db ".backup '/tmp/gitea-db-backup.db'"
-docker cp "gitea:/tmp/gitea-db-backup.db" "${BACKUP_DIR}/database/gitea-db-${TIMESTAMP}.db"
-docker exec gitea rm /tmp/gitea-db-backup.db
-echo "✓ Database backup complete"
-
-# Stop Gitea for consistent repository backup
-echo "[2/3] Stopping Gitea for repository backup..."
+# Stop Gitea for consistent backup
+echo "[1/3] Stopping Gitea for consistent backup..."
 docker stop gitea
 
-# Create zip archive of repositories
 # Use a trap to ensure gitea is always restarted, even if backup fails
 restart_gitea() {
     echo "[3/3] Starting Gitea..."
@@ -42,6 +34,12 @@ restart_gitea() {
 }
 trap restart_gitea EXIT
 
+# Backup database using direct file copy (Gitea is stopped, so no lock issues)
+echo "[2/3] Backing up Gitea database and repositories..."
+cp /mnt/gitea/gitea/gitea.db "${BACKUP_DIR}/database/gitea-db-${TIMESTAMP}.db"
+echo "✓ Database backup complete"
+
+# Create zip archive of repositories
 echo "Creating repository archive..."
 cd /mnt/gitea/git || exit 1
 zip -r "${BACKUP_DIR}/repositories/gitea-repos-${TIMESTAMP}.zip" repositories -q
