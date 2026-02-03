@@ -174,14 +174,14 @@
     },
     {
       "parameters": {
-        "command": "=mv /mnt/obsidian-vault/Weekly\\ Notes/Week-{{ $('Calculate Month Details').first().json.month }}-*.md \"/mnt/obsidian-vault/Weekly Notes/{{ $json.archivePath }}/\" && echo \"Moved {{ $('Parse Weekly Note Files').first().json.fileCount }} files to {{ $json.archivePath }}\""
+        "command": "=MONTH=\"{{ $('Calculate Month Details').first().json.month }}\" && ARCHIVE_PATH=\"{{ $json.archivePath }}\" && SOURCE_DIR=\"/mnt/obsidian-vault/Weekly Notes\" && FILES_TO_MOVE=$(ls \"$SOURCE_DIR\"/Week-$MONTH-*.md 2>/dev/null | wc -l) && if [ $FILES_TO_MOVE -gt 0 ]; then mv \"$SOURCE_DIR\"/Week-$MONTH-*.md \"$SOURCE_DIR/$ARCHIVE_PATH/\" && MOVED=$(ls \"$SOURCE_DIR/$ARCHIVE_PATH\"/Week-$MONTH-*.md 2>/dev/null | wc -l) && echo \"Successfully moved $MOVED files to $ARCHIVE_PATH\" && exit 0; else echo \"ERROR: No files found matching Week-$MONTH-*.md in $SOURCE_DIR\" && exit 1; fi"
       },
       "id": "b2c3d4e5-f6a7-5b6c-9d0e-1f2a3b4c5d6e",
       "name": "Archive Weekly Notes",
       "type": "n8n-nodes-base.ssh",
       "typeVersion": 1,
       "position": [2440, 200],
-      "notes": "Move weekly notes to year/month archive folder",
+      "notes": "Move weekly notes to year/month archive folder with error checking",
       "credentials": {
         "sshPassword": {
           "id": "JFyXom4nOrhtezt1",
@@ -191,14 +191,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const monthData = $('Calculate Month Details').first().json;\nconst fileCount = $('Parse Weekly Note Files').first().json.fileCount;\nconst summaryFile = $json.fileName;\nconst archivePath = $json.archivePath;\n\nreturn [{\n  json: {\n    success: true,\n    message: `Monthly summary complete for ${monthData.monthName} ${monthData.year}`,\n    details: {\n      summaryFile: summaryFile,\n      archivedFiles: fileCount,\n      archiveLocation: `Weekly Notes/${archivePath}/`,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+        "jsCode": "const monthData = $('Calculate Month Details').first().json;\nconst fileCount = $('Parse Weekly Note Files').first().json.fileCount;\nconst archiveOutput = $('Archive Weekly Notes').first().json;\nconst summaryOutput = $('Write Summary File').first().json;\n\n// Parse archive result\nconst archiveStdout = archiveOutput.stdout || '';\nconst archiveSuccess = archiveStdout.includes('Successfully moved');\n\nreturn [{\n  json: {\n    success: archiveSuccess,\n    message: `Monthly summary complete for ${monthData.monthName} ${monthData.year}`,\n    details: {\n      summaryFile: monthData.summaryFileName,\n      expectedFiles: fileCount,\n      archiveLocation: `Weekly Notes/${monthData.archivePath}/`,\n      archiveResult: archiveStdout.trim(),\n      summaryWritten: summaryOutput.stdout ? true : false,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
       },
       "id": "c3d4e5f6-a7b8-6c7d-0e1f-2a3b4c5d6e7f",
       "name": "Build Success Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [2660, 200],
-      "notes": "Create final success message with details"
+      "notes": "Create final success message with archive verification"
     }
   ],
   "pinData": {},
