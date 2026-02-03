@@ -24,7 +24,7 @@
     },
     {
       "parameters": {
-        "command": "docker exec alpine-utility /bin/sh /config/scripts/export_monthly_snapshot_gf.sh",
+        "command": "docker exec alpine-utility /bin/sh /scripts/export_monthly_snapshot_gf.sh",
         "options": {}
       },
       "id": "execute-export",

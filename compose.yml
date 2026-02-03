@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - /Volumes/docker/container_configs/open-webui:/app/backend/data
+      - ${DOCKER_CONFIG_ROOT}/open-webui:/app/backend/data
     environment:
       # Ollama Integration
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/
@@ -32,11 +32,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: '4.0'
+    mem_limit: 4G
+    cpus: "4.0"
 
   wyoming-whisper:
     image: rhasspy/wyoming-whisper:latest
@@ -46,18 +43,15 @@ services:
     ports:
       - "10300:10300"
     volumes:
-      - /Volumes/docker/container_configs/wyoming-whisper:/data
+      - ${DOCKER_CONFIG_ROOT}/wyoming-whisper:/data
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
+    mem_limit: 1G
+    cpus: "1.0"
 
   wyoming-piper:
     image: rhasspy/wyoming-piper:latest
@@ -67,18 +61,15 @@ services:
     ports:
       - "10200:10200"
     volumes:
-      - /Volumes/docker/container_configs/wyoming-piper:/data
+      - ${DOCKER_CONFIG_ROOT}/wyoming-piper:/data
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
+    mem_limit: 1G
+    cpus: "1.0"
 
   wyoming-openwakeword:
     image: rhasspy/wyoming-openwakeword:latest
@@ -88,18 +79,15 @@ services:
     ports:
       - "10400:10400"
     volumes:
-      - /Volumes/docker/container_configs/wyoming-openwakeword:/data
+      - ${DOCKER_CONFIG_ROOT}/wyoming-openwakeword:/data
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   n8n:
     image: n8nio/n8n:latest
@@ -108,9 +96,8 @@ services:
     ports:
       - "5678:5678"
     volumes:
-      - /Volumes/docker/container_configs/n8n:/home/node/.n8n
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/bud/home_space/obsidian-vault:/data/obsidian-vault
+      - ${DOCKER_CONFIG_ROOT}/n8n:/home/node/.n8n
+      - ${OBSIDIAN_VAULT}:/data/obsidian-vault
     environment:
       # Server Configuration
       - N8N_HOST=localhost
@@ -131,11 +118,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '2.0'
+    mem_limit: 2G
+    cpus: "2.0"
 
   searxng:
     image: searxng/searxng:latest
@@ -144,7 +128,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - /Volumes/docker/container_configs/searxng:/etc/searxng:rw
+      - ${DOCKER_CONFIG_ROOT}/searxng:/etc/searxng:rw
     restart: unless-stopped
     cap_drop:
       - ALL
@@ -158,11 +142,8 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   metube:
     image: ghcr.io/alexta69/metube
@@ -171,19 +152,16 @@ services:
     ports:
       - "8082:8081"
     volumes:
-      - /Volumes/docker/container_configs/metube:/data
-      - /Volumes/docker/youtube_dls:/downloads
+      - ${DOCKER_CONFIG_ROOT}/metube:/data
+      - ${DOCKER_DOWNLOADS_ROOT}:/downloads
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
+    mem_limit: 1G
+    cpus: "1.0"
 
   # KARAKEEP - Replaces Linkwarden
   karakeep-meilisearch:
@@ -195,7 +173,7 @@ services:
     environment:
       - MEILI_NO_ANALYTICS=true
     volumes:
-      - /Volumes/docker/container_configs/karakeep/meili_data:/meili_data
+      - ${DOCKER_CONFIG_ROOT}/karakeep/meili_data:/meili_data
     networks:
       default:
         aliases:
@@ -206,11 +184,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   karakeep-chrome:
     image: gcr.io/zenika-hub/alpine-chrome:124
@@ -232,11 +207,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   karakeep:
     image: ghcr.io/karakeep-app/karakeep:release
@@ -247,7 +219,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - /Volumes/docker/container_configs/karakeep/data:/data
+      - ${DOCKER_CONFIG_ROOT}/karakeep/data:/data
     environment:
       - DATA_DIR=/data
       - MEILI_ADDR=http://meilisearch:7700
@@ -263,20 +235,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '2.0'
+    mem_limit: 1G
+    cpus: "2.0"
 
   budget-dashboard:
-    build: /Users/bud/home_space/coding/python-budget-tracker
+    build: ${CODING_ROOT}/python-budget-tracker
     container_name: budget-dashboard
     env_file: env/.env
     ports:
       - "8501:8501"
     volumes:
-      - /Volumes/docker/container_configs/budget-dashboard/app-data:/app/data
+      - ${DOCKER_CONFIG_ROOT}/budget-dashboard/app-data:/app/data
     environment:
       - DATA_FILE_PATH=/app/data/budget_data.json
     restart: unless-stopped
@@ -291,20 +260,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   budget-dashboard-gf:
-    build: /Users/bud/home_space/coding/python-budget-tracker
+    build: ${CODING_ROOT}/python-budget-tracker
     container_name: budget-dashboard-gf
     env_file: env/.env
     ports:
       - "8504:8501"
     volumes:
-      - /Volumes/docker/container_configs/budget-dashboard-gf/app-data:/app/data
+      - ${DOCKER_CONFIG_ROOT}/budget-dashboard-gf/app-data:/app/data
     environment:
       - DATA_FILE_PATH=/app/data/budget_data.json
     restart: unless-stopped
@@ -319,11 +285,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   gitea:
     image: gitea/gitea:1.24.6
@@ -333,7 +296,7 @@ services:
       - "3002:3000"  # Web UI
       - "2222:22"    # SSH
     volumes:
-      - /Volumes/docker/container_configs/gitea:/data
+      - ${DOCKER_CONFIG_ROOT}/gitea:/data
     environment:
       - USER_UID=501
       - USER_GID=20
@@ -349,20 +312,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '2.0'
+    mem_limit: 1G
+    cpus: "2.0"
 
   learning-dashboard:
-    build: /Users/bud/home_space/coding/python-learning-dashboard
+    build: ${CODING_ROOT}/python-learning-dashboard
     container_name: learning-dashboard
     env_file: env/.env
     ports:
       - "8502:8501"
     volumes:
-      - /Volumes/docker/container_configs/learning-dashboard/app-data:/app/data
+      - ${DOCKER_CONFIG_ROOT}/learning-dashboard/app-data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
@@ -377,11 +337,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:latest
@@ -390,24 +347,21 @@ services:
     ports:
       - "13378:80"
     volumes:
-      - /Volumes/docker/container_configs/audiobookshelf/audiobooks:/audiobooks
-      - /Volumes/docker/container_configs/audiobookshelf/podcasts:/podcasts
-      - /Volumes/docker/container_configs/audiobookshelf/config:/config
-      - /Volumes/docker/container_configs/audiobookshelf/metadata:/metadata
+      - ${DOCKER_CONFIG_ROOT}/audiobookshelf/audiobooks:/audiobooks
+      - ${DOCKER_CONFIG_ROOT}/audiobookshelf/podcasts:/podcasts
+      - ${DOCKER_CONFIG_ROOT}/audiobookshelf/config:/config
+      - ${DOCKER_CONFIG_ROOT}/audiobookshelf/metadata:/metadata
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '2.0'
+    mem_limit: 1G
+    cpus: "2.0"
 
   youtube-transcripts-api:
-    build: /Users/bud/home_space/coding/youtube-transcripts-api
+    build: ${CODING_ROOT}/youtube-transcripts-api
     container_name: youtube-transcripts-api
     env_file: env/.env
     ports:
@@ -426,11 +380,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
+    mem_limit: 512M
+    cpus: "1.0"
 
   open-notebook:
     image: lfnovo/open_notebook:v1-latest-single
@@ -442,8 +393,8 @@ services:
       - "8503:8502"  # Web UI (mapped to 8503 to avoid conflict with learning-dashboard)
       - "5055:5055"  # API (required!)
     volumes:
-      - /Volumes/docker/container_configs/open-notebook/notebook_data:/app/data
-      - /Volumes/docker/container_configs/open-notebook/surreal_single_data:/mydata
+      - ${DOCKER_CONFIG_ROOT}/open-notebook/notebook_data:/app/data
+      - ${DOCKER_CONFIG_ROOT}/open-notebook/surreal_single_data:/mydata
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -458,11 +409,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '2.0'
+    mem_limit: 2G
+    cpus: "2.0"
 
   openedai-speech:
     image: ghcr.io/matatonic/openedai-speech:latest
@@ -473,8 +421,8 @@ services:
     ports:
       - "8000:8000"  # TTS API
     volumes:
-      - /Volumes/docker/container_configs/openedai-speech/voices:/app/voices
-      - /Volumes/docker/container_configs/openedai-speech/config:/app/config
+      - ${DOCKER_CONFIG_ROOT}/openedai-speech/voices:/app/voices
+      - ${DOCKER_CONFIG_ROOT}/openedai-speech/config:/app/config
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/v1/models || exit 1"]
@@ -487,11 +435,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-          cpus: '4.0'
+    mem_limit: 8G
+    cpus: "4.0"
 
   tailscale:
     image: tailscale/tailscale:latest
@@ -504,7 +449,7 @@ services:
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=true
     volumes:
-      - /Volumes/docker/container_configs/tailscale/state:/var/lib/tailscale
+      - ${DOCKER_CONFIG_ROOT}/tailscale/state:/var/lib/tailscale
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -515,11 +460,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
+    mem_limit: 256M
+    cpus: "0.5"
 
   alpine-utility:
     build: ./alpine-utility
@@ -528,21 +470,21 @@ services:
     hostname: alpine-utility
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Volumes/docker/container_configs/alpine-utility:/config
-      - /Users/bud/home_space/homelab/alpine-utility/scripts:/scripts
-      - /Volumes/docker/container_configs/audiobookshelf/podcasts:/mnt/audiobookshelf
+      - ${DOCKER_CONFIG_ROOT}/alpine-utility:/config
+      - ${HOMELAB_ROOT}/alpine-utility/scripts:/scripts
+      - ${DOCKER_CONFIG_ROOT}/audiobookshelf/podcasts:/mnt/audiobookshelf
       # Budget export script volumes
-      - /Volumes/docker/container_configs/budget-dashboard/app-data:/mnt/budget-dashboard:ro
-      - /Volumes/docker/container_configs/budget-dashboard-gf/app-data:/mnt/budget-dashboard-gf:ro
-      - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
+      - ${DOCKER_CONFIG_ROOT}/budget-dashboard/app-data:/mnt/budget-dashboard:ro
+      - ${DOCKER_CONFIG_ROOT}/budget-dashboard-gf/app-data:/mnt/budget-dashboard-gf:ro
+      - ${BACKUPS_ROOT}/budget-dashboard:/mnt/backups/budget-dashboard
       # Obsidian vault for monthly summary generation
-      - /Users/bud/home_space/obsidian-vault:/mnt/obsidian-vault
+      - ${OBSIDIAN_VAULT}:/mnt/obsidian-vault
       # Karakeep backup volumes
-      - /Volumes/docker/container_configs/karakeep/data:/mnt/karakeep:ro
-      - /Volumes/backups/karakeep:/mnt/backups/karakeep
+      - ${DOCKER_CONFIG_ROOT}/karakeep/data:/mnt/karakeep:ro
+      - ${BACKUPS_ROOT}/karakeep:/mnt/backups/karakeep
       # Gitea backup volumes
-      - /Volumes/docker/container_configs/gitea:/mnt/gitea:ro
-      - /Volumes/backups/gitea:/mnt/backups/gitea
+      - ${DOCKER_CONFIG_ROOT}/gitea:/mnt/gitea:ro
+      - ${BACKUPS_ROOT}/gitea:/mnt/backups/gitea
     ports:
       - "2223:22"
     restart: unless-stopped
@@ -551,11 +493,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.5'
+    mem_limit: 128M
+    cpus: "0.5"
 
   victoria-logs:
     image: docker.io/victoriametrics/victoria-logs:v0.41.0-victorialogs
@@ -564,7 +503,7 @@ services:
     ports:
       - "9428:9428"
     volumes:
-      - /Volumes/docker/container_configs/victoria-logs:/victoria-logs-data
+      - ${DOCKER_CONFIG_ROOT}/victoria-logs:/victoria-logs-data
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command:
       - -storageDataPath=/victoria-logs-data
@@ -584,8 +523,5 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '2.0'
+    mem_limit: 1G
+    cpus: "2.0"

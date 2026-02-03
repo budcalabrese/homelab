@@ -202,7 +202,7 @@ Both workflows run monthly on the last day of the month and export budget data t
 **Schedule**: Monthly, last day at 11:55 PM (`55 23 L * *`)
 
 **What it does**:
-1. Executes `/config/scripts/export_monthly_snapshot.sh` in alpine-utility container
+1. Executes `/scripts/export_monthly_snapshot.sh` in alpine-utility container
 2. Script reads from `/mnt/budget-dashboard/budget_data.json`
 3. Generates CSV export with summary and all categories
 4. Backs up raw JSON data
@@ -235,7 +235,7 @@ Budget export scripts require:
     - /Volumes/docker/container_configs/budget-dashboard-gf/app-data:/mnt/budget-dashboard-gf:ro
     - /Volumes/backups/budget-dashboard:/mnt/backups/budget-dashboard
   ```
-- Scripts in alpine-utility: `/config/scripts/export_monthly_snapshot*.sh`
+- Scripts in alpine-utility: `/scripts/export_monthly_snapshot*.sh`
 
 ---
 
@@ -342,7 +342,7 @@ This workflow automatically creates a comprehensive monthly summary by analyzing
 - alpine-utility container with:
   - obsidian-vault mounted at `/mnt/obsidian-vault`
   - SSH server running on port 2223
-  - Helper script: `/config/scripts/obsidian-monthly-summary.sh`
+  - Helper script: `/scripts/obsidian-monthly-summary.sh`
 - n8n with SSH credentials configured for alpine-utility
 
 **AI Prompt Features**:
@@ -456,7 +456,7 @@ Uses SSH credentials configured above (Alpine Utility SSH).
 - Weekly notes in `obsidian-vault/Weekly Notes/` with format: `Week-MM-DD-YY.md`
 - alpine-utility container with:
   - obsidian-vault mounted at `/mnt/obsidian-vault`
-  - Helper script at `/config/scripts/obsidian-monthly-summary.sh` (already configured)
+  - Helper script at `/scripts/obsidian-monthly-summary.sh` (already configured)
   - SSH access configured (already configured)
 
 **Verify alpine-utility volume mount:**
@@ -499,7 +499,7 @@ Replace the "Success Notification" and "No Files Notification" noOp nodes with a
 
 3. **Verify helper script exists in alpine-utility**:
    ```bash
-   docker exec alpine-utility ls -la /config/scripts/obsidian-monthly-summary.sh
+  docker exec alpine-utility ls -la /scripts/obsidian-monthly-summary.sh
    ```
    - Should show the script with execute permissions
 
@@ -638,17 +638,17 @@ Once tested successfully:
 **Script not found**
 - Verify scripts exist in alpine-utility:
   ```bash
-  docker exec alpine-utility ls -la /config/scripts/
+  docker exec alpine-utility ls -la /scripts/
   ```
 - Scripts should be executable: `chmod +x export_monthly_snapshot*.sh`
 
 **Manual test**:
 ```bash
 # Test main export
-docker exec alpine-utility /bin/sh /config/scripts/export_monthly_snapshot.sh
+docker exec alpine-utility /bin/sh /scripts/export_monthly_snapshot.sh
 
 # Test GF export
-docker exec alpine-utility /bin/sh /config/scripts/export_monthly_snapshot_gf.sh
+docker exec alpine-utility /bin/sh /scripts/export_monthly_snapshot_gf.sh
 ```
 
 ### General Issues

@@ -79,11 +79,23 @@ Automated bookmark-to-podcast pipeline using Karakeep, Open Notebook, and n8n.
    - Get actual values from `homelab-secrets` Gitea repo (local only)
    - Or generate new secrets using secure random generators
    - **NEVER commit actual `env/.env` files!**
+   - Confirm path variables in `env/.env` match your system:
+     ```bash
+     HOMELAB_ROOT=/Users/bud/home_space/homelab
+     HOME_SPACE_ROOT=/Users/bud/home_space
+     CODING_ROOT=/Users/bud/home_space/coding
+     DOCKER_CONFIG_ROOT=/Volumes/docker/container_configs
+     DOCKER_DOWNLOADS_ROOT=/Volumes/docker/youtube_dls
+     BACKUPS_ROOT=/Volumes/backups
+     OBSIDIAN_VAULT=/Users/bud/home_space/obsidian-vault
+     ```
 
 4. **Create required directories**
    ```bash
-   sudo mkdir -p /Volumes/docker/container_configs/{open-webui,wyoming-whisper,wyoming-piper,wyoming-openwakeword,n8n,searxng,metube,karakeep,budget-dashboard,budget-dashboard-gf,gitea,learning-dashboard,audiobookshelf,open-notebook,openedai-speech,tailscale,alpine-utility}
-   sudo mkdir -p /Volumes/docker/youtube_dls
+   export DOCKER_CONFIG_ROOT=/Volumes/docker/container_configs
+   export DOCKER_DOWNLOADS_ROOT=/Volumes/docker/youtube_dls
+   sudo mkdir -p "${DOCKER_CONFIG_ROOT}"/{open-webui,wyoming-whisper,wyoming-piper,wyoming-openwakeword,n8n,searxng,metube,karakeep,budget-dashboard,budget-dashboard-gf,gitea,learning-dashboard,audiobookshelf,open-notebook,openedai-speech,tailscale,alpine-utility}
+   sudo mkdir -p "${DOCKER_DOWNLOADS_ROOT}"
    ```
 
 5. **Deploy stack**
@@ -183,6 +195,7 @@ docker compose logs -f [service-name]
 ```bash
 docker compose restart [service-name]
 ```
+Use `docker compose up -d [service-name]` if you changed any environment variables.
 
 ### Stop all services
 ```bash
@@ -216,7 +229,7 @@ bash scripts/homelab_update.sh
 - Always verify `.gitignore` is working before commits:
   ```bash
   git status
-  git check-ignore .env  # Should output: .env
+  git check-ignore env/.env  # Should output: env/.env
   ```
 
 ### Pre-commit Security Check
@@ -262,15 +275,15 @@ bash scripts/homelab_update.sh
 
 **Note**: The script uses `docker compose build --no-cache` to rebuild ALL services with `build:` directives in compose.yml. Services using `image:` (registry pulls) are updated via `docker compose pull`.
 
-### gitea_backup.sh
-Backs up Gitea database and repositories:
+### export_gitea_backup.sh
+Backs up Gitea database and repositories via alpine-utility:
 - Creates SQLite database backup
 - Archives all Git repositories
 - Stores backups in `/Volumes/backups/gitea/`
 
 Usage:
 ```bash
-bash scripts/gitea_backup.sh
+docker exec alpine-utility /scripts/export_gitea_backup.sh
 ```
 
 ## Backup Strategy
@@ -287,13 +300,14 @@ See `alpine-utility/docker-monitor.sh` for automated health checks and monitorin
 
 Comprehensive documentation is available in the [`docs/`](docs/) directory:
 
-- **[Open Notebook Setup](docs/open-notebook-setup.md)** - Local AI podcast generation configuration
-- **[Karakeep API Reference](docs/karakeep-api-reference.md)** - REST API documentation and examples
-- **[Karakeep Podcast Workflow](docs/karakeep-podcast-workflow.md)** - Automated bookmark-to-podcast pipeline
-- **[Productivity System Plan](docs/buds-productivity-system-plan.md)** - Overall system design
-- **[GitHub Repo Structure](docs/github-repo-structure-plan.md)** - Repository organization
+- **[Open Notebook Setup](docs/services/open-notebook-setup.md)** - Local AI podcast generation configuration
+- **[Karakeep API Reference](docs/api/karakeep-api-reference.md)** - REST API documentation and examples
+- **[Karakeep Podcast Workflow](docs/services/karakeep-podcast-workflow.md)** - Automated bookmark-to-podcast pipeline
+- **[Productivity System Plan](docs/planning/buds-productivity-system-plan.md)** - Overall system design
+- **[GitHub Repo Structure](docs/planning/github-repo-structure-plan.md)** - Repository organization
 
 See [docs/README.md](docs/README.md) for complete documentation index.
+See [Restore Runbook](docs/restore.md) and [Service Inventory](docs/services/inventory.md) for operations reference.
 
 ## Related Repositories
 

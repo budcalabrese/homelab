@@ -25,6 +25,7 @@ Configuration and workflow documentation for homelab services.
   - Deluge torrent client with plugins
   - Port mappings and volume mounts
   - Infrastructure-as-code documentation
+- **[inventory.md](services/inventory.md)** - Service inventory (ports, paths, dependencies)
 
 ### Automation Workflows
 - **[karakeep-podcast-workflow.md](services/karakeep-podcast-workflow.md)** - Automated bookmark-to-podcast workflow
@@ -81,8 +82,10 @@ API documentation and reference materials.
 
 ### Setup Documentation
 - [Main README](../README.md) - Homelab overview and quick start
-- [CLAUDE.md](../CLAUDE.md) - Instructions for Claude Code sessions
 - [Environment Templates](../env/) - `.env.*.template` files for service configuration
+
+### Operations
+- [Restore Runbook](restore.md) - Step-by-step restore guide
 
 ### Configuration Files
 - [compose.yml](../compose.yml) - Docker Compose configuration for all services

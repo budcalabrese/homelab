@@ -21,9 +21,9 @@ docker compose build --no-cache
 echo "Running updated containers"
 docker compose up -d
 
-# pruning docker containers
-echo "Pruning Docker images"
-docker image prune -a -f
+# pruning docker images (dangling only)
+echo "Pruning Docker images (dangling only)"
+docker image prune -f
 
 # updating homebrew packages
 brew update && brew upgrade && brew cleanup && brew doctor  

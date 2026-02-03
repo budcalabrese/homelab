@@ -77,7 +77,7 @@ The alpine-utility container uses SSH key authentication for automation (configu
 
 ### Calling Scripts from n8n
 
-Use Execute Command nodes with SSH:
+Use SSH nodes:
 
 ```bash
 # Monitoring script example
