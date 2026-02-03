@@ -239,10 +239,74 @@ Budget export scripts require:
 
 ---
 
+### Youtube Aggregator
+
+**Files:**
+- `Youtube Aggregator.json` - Daily digest of YouTube channel videos with AI summaries
+
+#### How It Works
+
+This workflow aggregates YouTube videos from subscribed channels, fetches transcripts, generates AI summaries, and sends a daily email digest.
+
+**Schedule**: Daily at 12:00 PM (`triggerAtHour: 12`)
+
+**What it does**:
+1. Fetches RSS feeds from YouTube channels
+2. Filters videos from the last 48 hours
+3. Filters out YouTube Shorts (only processes regular videos)
+4. Extracts video IDs and metadata
+5. Fetches video transcripts from external API (`http://host.docker.internal:5001/transcript`)
+6. Processes transcripts and normalizes text
+7. Sends transcript + metadata to Ollama (qwen2.5:7b) for AI summarization
+8. Generates formatted HTML email digest with:
+   - Video thumbnails
+   - Channel names
+   - AI-generated summaries (or title-only for videos without transcripts)
+   - Badge indicators (✅ Analyzed = full transcript, 📝 Title Only = no transcript)
+   - Direct "Watch Video" links
+9. Sends daily digest email
+
+**Channel Configuration**:
+- Edit "Edit Fields - YT channelids" node
+- Add/remove YouTube channel IDs in the array
+- Current channels:
+  - `UChpleBmo18P08aKCIgti38g`
+
+**Output**:
+- Daily email digest with video cards
+- Videos marked as "Analyzed" (with transcript) or "Title Only" (without transcript)
+- Clickable thumbnails and watch buttons
+
+**Dependencies**:
+- External transcript API running at `http://host.docker.internal:5001/transcript`
+- Ollama running with qwen2.5:7b model
+- SMTP credentials configured in n8n
+- n8n with Ollama Chat Model credentials
+
+**Error Handling**:
+- Gracefully handles videos without transcripts (falls back to title-only summaries)
+- Filters out YouTube Shorts automatically
+- 60-second timeout on transcript API calls
+- Stops execution if no regular videos found (all Shorts filtered out)
+
+**AI Summarization**:
+- Uses Ollama qwen2.5:7b model
+- Generates 2-3 sentence compelling summaries
+- Focuses on specific topics, tools, features, and demonstrations
+- Extracts concrete takeaways from transcripts
+- Temperature and context optimized for consistent output
+
+**Known Limitations**:
+- Workflow stops if all videos are Shorts (no regular videos to process)
+- Requires external transcript API to be running
+- 4000 character transcript limit for AI processing
+
+---
+
 ### Obsidian Monthly Summary
 
 **Files:**
-- `obsidian-monthly-summary.json` - Generates monthly summaries from weekly notes
+- `Obsidian Monthly Summary Generator.json` - Generates monthly summaries from weekly notes
 
 #### How It Works
 
@@ -657,5 +721,5 @@ n8n export:workflow --all --output=/path/to/backup/
 
 ---
 
-**Last Updated:** January 2, 2026
-**Workflows:** 9 total (2 podcast, 2 budget, 1 docker monitoring, 1 karakeep backup, 1 financial data, 1 obsidian, 1 victorialogs)
+**Last Updated:** February 3, 2026
+**Workflows:** 10 total (2 podcast, 2 budget, 1 docker monitoring, 1 karakeep backup, 1 financial data, 1 obsidian, 1 victorialogs, 1 youtube aggregator)
