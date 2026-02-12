@@ -3,7 +3,6 @@ services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
-    env_file: env/.env
     ports:
       - "8080:8080"
     volumes:
@@ -38,7 +37,6 @@ services:
   wyoming-whisper:
     image: rhasspy/wyoming-whisper:latest
     container_name: wyoming-whisper
-    env_file: env/.env
     command: --model base --language en
     ports:
       - "10300:10300"
@@ -56,7 +54,6 @@ services:
   wyoming-piper:
     image: rhasspy/wyoming-piper:latest
     container_name: wyoming-piper
-    env_file: env/.env
     command: --voice en_US-amy-medium
     ports:
       - "10200:10200"
@@ -74,7 +71,6 @@ services:
   wyoming-openwakeword:
     image: rhasspy/wyoming-openwakeword:latest
     container_name: wyoming-openwakeword
-    env_file: env/.env
     command: --preload-model hey_jarvis # alexa & snowboy are other options
     ports:
       - "10400:10400"
@@ -92,7 +88,6 @@ services:
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    env_file: env/.env
     ports:
       - "5678:5678"
     volumes:
@@ -124,7 +119,6 @@ services:
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
-    env_file: env/.env
     ports:
       - "8081:8080"
     volumes:
@@ -148,7 +142,6 @@ services:
   metube:
     image: ghcr.io/alexta69/metube
     container_name: metube
-    env_file: env/.env
     ports:
       - "8082:8081"
     volumes:
@@ -168,7 +161,6 @@ services:
     image: getmeili/meilisearch:v1.13.3
     container_name: karakeep-meilisearch
     env_file:
-      - env/.env
       - env/.env.karakeep
     environment:
       - MEILI_NO_ANALYTICS=true
@@ -214,7 +206,6 @@ services:
     image: ghcr.io/karakeep-app/karakeep:release
     container_name: karakeep
     env_file:
-      - env/.env
       - env/.env.karakeep
     ports:
       - "3000:3000"
@@ -241,7 +232,6 @@ services:
   budget-dashboard:
     build: ${CODING_ROOT}/python-budget-tracker
     container_name: budget-dashboard
-    env_file: env/.env
     ports:
       - "8501:8501"
     volumes:
@@ -263,35 +253,34 @@ services:
     mem_limit: 512M
     cpus: "1.0"
 
-  budget-dashboard-gf:
-    build: ${CODING_ROOT}/python-budget-tracker
-    container_name: budget-dashboard-gf
-    env_file: env/.env
-    ports:
-      - "8504:8501"
-    volumes:
-      - ${DOCKER_CONFIG_ROOT}/budget-dashboard-gf/app-data:/app/data
-    environment:
-      - DATA_FILE_PATH=/app/data/budget_data.json
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512M
-    cpus: "1.0"
+  # budget-dashboard-gf:
+  #   build: ${CODING_ROOT}/python-budget-tracker
+  #   container_name: budget-dashboard-gf
+  #   env_file: env/.env
+  #   ports:
+  #     - "8504:8501"
+  #   volumes:
+  #     - ${DOCKER_CONFIG_ROOT}/budget-dashboard-gf/app-data:/app/data
+  #   environment:
+  #     - DATA_FILE_PATH=/app/data/budget_data.json
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 30s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #   mem_limit: 512M
+  #   cpus: "1.0"
 
   gitea:
     image: gitea/gitea:1.24.6
     container_name: gitea
-    env_file: env/.env
     ports:
       - "3002:3000"  # Web UI
       - "2222:22"    # SSH
@@ -318,7 +307,6 @@ services:
   learning-dashboard:
     build: ${CODING_ROOT}/python-learning-dashboard
     container_name: learning-dashboard
-    env_file: env/.env
     ports:
       - "8502:8501"
     volumes:
@@ -343,7 +331,6 @@ services:
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:latest
     container_name: audiobookshelf
-    env_file: env/.env
     ports:
       - "13378:80"
     volumes:
@@ -363,7 +350,6 @@ services:
   youtube-transcripts-api:
     build: ${CODING_ROOT}/youtube-transcripts-api
     container_name: youtube-transcripts-api
-    env_file: env/.env
     ports:
       - "5001:5000"
     environment:
@@ -387,7 +373,6 @@ services:
     image: lfnovo/open_notebook:v1-latest-single
     container_name: open-notebook
     env_file:
-      - env/.env
       - env/.env.open-notebook
     ports:
       - "8503:8502"  # Web UI (mapped to 8503 to avoid conflict with learning-dashboard)
@@ -416,7 +401,6 @@ services:
     image: ghcr.io/matatonic/openedai-speech:latest
     container_name: openedai-speech
     env_file:
-      - env/.env
       - env/.env.openedai-speech
     ports:
       - "8000:8000"  # TTS API
@@ -442,7 +426,6 @@ services:
     image: tailscale/tailscale:latest
     container_name: tailscale
     env_file:
-      - env/.env
       - env/.env.tailscale
     hostname: homelab-docker
     environment:
@@ -466,7 +449,6 @@ services:
   alpine-utility:
     build: ./alpine-utility
     container_name: alpine-utility
-    env_file: env/.env
     hostname: alpine-utility
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -499,7 +481,6 @@ services:
   victoria-logs:
     image: docker.io/victoriametrics/victoria-logs:v0.41.0-victorialogs
     container_name: victoria-logs
-    env_file: env/.env
     ports:
       - "9428:9428"
     volumes:
@@ -525,3 +506,22 @@ services:
         max-file: "3"
     mem_limit: 1G
     cpus: "2.0"
+
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: fluent-bit
+    ports:
+      - "5140:5140/udp"
+    volumes:
+      - /Users/bud/home_space/homelab/logging/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - /Users/bud/home_space/homelab/logging/fluent-bit/parsers.conf:/fluent-bit/etc/custom-parsers.conf:ro
+    depends_on:
+      - victoria-logs
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256M
+    cpus: "0.5"
