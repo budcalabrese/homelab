@@ -4,7 +4,7 @@ Docker-based homelab running on Mac Mini (Texas).
 
 ## Services
 
-### Core Services
+### Core
 - **n8n** - Automation orchestration
 - **Gitea** - Self-hosted Git server
 - **Tailscale** - VPN access
@@ -16,7 +16,7 @@ Docker-based homelab running on Mac Mini (Texas).
 - **OpenEDAI Speech** - Text-to-speech engine
 
 ### Productivity
-- **Karakeep** - Bookmark manager with AI auto-tagging (replaces Linkwarden)
+- **Karakeep** - Bookmark manager with AI auto-tagging
 - **AudioBookShelf** - Media library and podcast player
 
 ### Voice Services
@@ -27,139 +27,71 @@ Docker-based homelab running on Mac Mini (Texas).
 ### Utilities
 - **SearXNG** - Privacy-focused search aggregator
 - **MeTube** - YouTube downloader
-- **Budget Dashboard** - Personal finance tracking (2 instances)
+- **Budget Dashboard** - Personal finance tracking
 - **Learning Dashboard** - Learning progress tracking
 - **YouTube Transcripts API** - REST API for video transcripts
-- **Alpine Utility** - Monitoring and health checks
-
-## Automation Stacks
-
-Pre-built automation workflows organized by use case:
-
-### 📻 Podcast Automation Stack
-**Location**: [`podcast-automation/`](podcast-automation/)
-
-Automated bookmark-to-podcast pipeline using Karakeep, Open Notebook, and n8n.
-
-**What it does**:
-- Daily at 2PM: Converts bookmarks to topic-based podcasts
-- Daily at 3AM: Cleans up old podcasted bookmarks
-- 100% local AI (Qwen2.5 + OpenEDAI Speech)
-
-**Quick Start**: See [podcast-automation/README.md](podcast-automation/README.md) (15-minute setup)
-
-**Components**:
-- Karakeep (bookmark capture with AI tagging)
-- Open Notebook (podcast generation)
-- n8n (workflow orchestration)
-- OpenEDAI Speech (local TTS)
+- **Alpine Utility** - Monitoring, backups, and health checks
 
 ---
 
-## Setup Instructions
+## Automation Stacks
 
-### Initial Setup
+### Podcast Automation
+**Location**: [`podcast-automation/`](podcast-automation/)
 
-1. **Clone this repository**
+Daily bookmark-to-podcast pipeline using Karakeep → Open Notebook → n8n.
+- 2PM daily: Converts bookmarks to topic-based podcasts
+- 3AM daily: Cleans up old podcasted bookmarks
+- 100% local AI (Qwen2.5 + OpenEDAI Speech)
+
+See [podcast-automation/README.md](podcast-automation/README.md) for setup.
+
+---
+
+## Setup
+
+1. **Clone and configure environment**
    ```bash
    git clone https://github.com/yourusername/homelab.git
    cd homelab
-   ```
-
-2. **Copy environment templates**
-   ```bash
    cp env/.env.template env/.env
    cp env/.env.karakeep.template env/.env.karakeep
    cp env/.env.open-notebook.template env/.env.open-notebook
    cp env/.env.openedai-speech.template env/.env.openedai-speech
    cp env/.env.tailscale.template env/.env.tailscale
    ```
+   Get actual secret values from `homelab-secrets` Gitea repo.
 
-3. **Edit `env/.env` files with actual secrets**
-   - Get actual values from `homelab-secrets` Gitea repo (local only)
-   - Or generate new secrets using secure random generators
-   - **NEVER commit actual `env/.env` files!**
-   - Confirm path variables in `env/.env` match your system:
-     ```bash
-     HOMELAB_ROOT=/Users/bud/home_space/homelab
-     HOME_SPACE_ROOT=/Users/bud/home_space
-     CODING_ROOT=/Users/bud/home_space/coding
-     DOCKER_CONFIG_ROOT=/Volumes/docker/container_configs
-     DOCKER_DOWNLOADS_ROOT=/Volumes/docker/youtube_dls
-     BACKUPS_ROOT=/Volumes/backups
-     OBSIDIAN_VAULT=/Users/bud/home_space/obsidian-vault
-     ```
+2. **Confirm path variables in `env/.env`**
+   ```
+   HOMELAB_ROOT=/Users/bud/home_space/homelab
+   HOME_SPACE_ROOT=/Users/bud/home_space
+   CODING_ROOT=/Users/bud/home_space/coding
+   DOCKER_CONFIG_ROOT=/Volumes/docker/container_configs
+   DOCKER_DOWNLOADS_ROOT=/Volumes/docker/youtube_dls
+   BACKUPS_ROOT=/Volumes/backups
+   OBSIDIAN_VAULT=/Users/bud/home_space/obsidian-vault
+   ```
 
-4. **Create required directories**
+3. **Create required directories**
    ```bash
    export DOCKER_CONFIG_ROOT=/Volumes/docker/container_configs
    export DOCKER_DOWNLOADS_ROOT=/Volumes/docker/youtube_dls
-   sudo mkdir -p "${DOCKER_CONFIG_ROOT}"/{open-webui,wyoming-whisper,wyoming-piper,wyoming-openwakeword,n8n,searxng,metube,karakeep,budget-dashboard,budget-dashboard-gf,gitea,learning-dashboard,audiobookshelf,open-notebook,openedai-speech,tailscale,alpine-utility}
+   sudo mkdir -p "${DOCKER_CONFIG_ROOT}"/{open-webui,wyoming-whisper,wyoming-piper,wyoming-openwakeword,n8n,searxng,metube,karakeep,budget-dashboard,gitea,learning-dashboard,audiobookshelf,open-notebook,openedai-speech,tailscale,alpine-utility}
    sudo mkdir -p "${DOCKER_DOWNLOADS_ROOT}"
    ```
 
-5. **Deploy stack**
+4. **Deploy**
    ```bash
    docker compose up -d
    ```
 
-## Karakeep Setup (Replacing Linkwarden)
-
-Karakeep (formerly Hoarder) is a self-hostable bookmark manager with AI-powered auto-tagging using your local Ollama instance.
-
-### First-Time Setup
-
-1. **Access Karakeep**: http://localhost:3000
-2. **Create account** (first user becomes admin)
-3. **Start bookmarking**:
-   - Use the Chrome/Firefox extension
-   - Use the iOS/Android mobile app
-   - Manually add links via the web interface
-
-### AI Configuration (Optional)
-
-Configure AI-powered auto-tagging:
-1. Go to Settings → AI
-2. Enable AI inference
-3. Choose provider:
-   - **Ollama** (recommended for self-hosting):
-     - URL: `http://host.docker.internal:11434`
-     - Select model: `llama3.2`, `mistral`, etc.
-   - **OpenAI**: Add API key to `.env.karakeep`
-4. Karakeep will automatically tag and summarize bookmarks
-
-### Mobile Access
-
-Install the mobile app:
-- **iOS**: [Karakeep on App Store](https://apps.apple.com/us/app/karakeep-app/id6479258022)
-- **Android**: [Karakeep on Play Store](https://play.google.com/store/apps/details?id=app.hoarder.hoardermobile)
-
-Configure:
-- Server URL: Your Tailscale hostname (e.g., `http://homelab-docker.tail-scale.ts.net:3000`)
-- Login with your account credentials
-
-### Browser Extensions
-
-- **Chrome**: [Karakeep Extension](https://chromewebstore.google.com/detail/karakeep/kgcjekpmcjjogibpjebkhaanilehneje)
-- **Firefox**: [Karakeep Add-on](https://addons.mozilla.org/en-US/firefox/addon/karakeep/)
-
-### Migrating from Linkwarden
-
-If you have existing Linkwarden bookmarks:
-1. Export bookmarks from Linkwarden (Settings → Export)
-2. Import into Karakeep (Settings → Import → Linkwarden)
-3. Verify bookmarks imported successfully
-4. Remove old Linkwarden containers if no longer needed
-
-## Volume Locations
-
-- **Configs**: `/Volumes/docker/container_configs/`
-- **Data**: Managed by Docker volumes within config directories
+---
 
 ## Port Mappings
 
-| Service | Port | Access |
-|---------|------|--------|
+| Service | Port | URL |
+|---------|------|-----|
 | Open WebUI | 8080 | http://localhost:8080 |
 | Karakeep | 3000 | http://localhost:3000 |
 | Gitea (Web) | 3002 | http://localhost:3002 |
@@ -170,7 +102,6 @@ If you have existing Linkwarden bookmarks:
 | Open Notebook | 8503 | http://localhost:8503 |
 | OpenEDAI Speech | 8000 | http://localhost:8000 |
 | Budget Dashboard | 8501 | http://localhost:8501 |
-| Budget Dashboard GF | 8504 | http://localhost:8504 |
 | Learning Dashboard | 8502 | http://localhost:8502 |
 | AudioBookShelf | 13378 | http://localhost:13378 |
 | YouTube Transcripts | 5001 | http://localhost:5001 |
@@ -179,212 +110,107 @@ If you have existing Linkwarden bookmarks:
 | Wyoming OpenWakeWord | 10400 | - |
 | Alpine Utility (SSH) | 2223 | ssh://localhost:2223 |
 
+**Volume location**: `/Volumes/docker/container_configs/` (network drive — all container data persists here, safe across Docker resets)
+
+---
+
 ## Management Commands
 
-### View running services
 ```bash
+# Status
 docker compose ps
-```
 
-### View logs
-```bash
+# Logs
 docker compose logs -f [service-name]
-```
 
-### Restart a service
-```bash
+# Restart a service
 docker compose restart [service-name]
-```
-Use `docker compose up -d [service-name]` if you changed any environment variables.
+# Use 'up -d' instead if you changed env vars
+docker compose up -d [service-name]
 
-### Stop all services
-```bash
+# Stop all
 docker compose down
-```
 
-### Update all services
-```bash
-# Pull latest registry images
-docker compose pull
-
-# Rebuild custom containers without cache
-docker compose build --no-cache
-
-# Restart all services
-docker compose up -d
-```
-
-Or use the automated update script:
-```bash
+# Update all (pull + rebuild + restart)
 bash scripts/homelab_update.sh
 ```
 
-## Security
-
-⚠️ **CRITICAL SECURITY NOTES**:
-
-- **NEVER** commit actual `.env` files to GitHub
-- Actual secrets are stored in Gitea `homelab-secrets` repo (local network only)
-- This repo contains **templates and infrastructure-as-code only**
-- Always verify `.gitignore` is working before commits:
-  ```bash
-  git status
-  git check-ignore env/.env  # Should output: env/.env
-  ```
-
-### Pre-commit Security Check
-
-Before ANY commit to GitHub:
-```bash
-# Check what will be committed
-git status
-git diff --cached
-
-# Search for potential secrets
-git diff --cached | grep -iE "password|api_key|secret|token|authkey"
-
-# Verify no actual env files are being committed
-git ls-files | grep "env/"  # Should ONLY show env/.env.*.template files
-git check-ignore env/.env  # Should output: env/.env
-```
-
-## Utility Scripts
-
-The `scripts/` directory contains utility scripts for homelab maintenance:
-
-### homelab_update.sh
-Comprehensive update script for all homelab components:
-
-**What it does**:
-1. Updates all Ollama models
-2. Pulls latest Docker images from registries
-3. Rebuilds custom containers (Budget Dashboard, Learning Dashboard) **without cache**
-4. Restarts all Docker services
-5. Prunes unused Docker images
-6. Updates Homebrew packages
-
-**Why `--no-cache` is used**:
-- Forces rebuild of custom containers even when Dockerfiles haven't changed
-- Ensures Python dependencies (requirements.txt) are updated
-- Prevents stale cached layers from being reused
-
-Usage:
-```bash
-bash scripts/homelab_update.sh
-```
-
-**Note**: The script uses `docker compose build --no-cache` to rebuild ALL services with `build:` directives in compose.yml. Services using `image:` (registry pulls) are updated via `docker compose pull`.
-
-### export_gitea_backup.sh
-Backs up Gitea database and repositories via alpine-utility:
-- Creates SQLite database backup
-- Archives all Git repositories
-- Stores backups in `/Volumes/backups/gitea/`
-
-Usage:
-```bash
-docker exec alpine-utility /scripts/export_gitea_backup.sh
-```
-
-## Backup Strategy
-
-### What to Backup
-- `/Volumes/docker/container_configs/` - All service data
-- `env/.env*` files (store in Gitea `homelab-secrets` repo)
-- This Git repository structure
-
-### Automated Backups
-See `alpine-utility/docker-monitor.sh` for automated health checks and monitoring.
-
-## Documentation
-
-Comprehensive documentation is available in the [`docs/`](docs/) directory:
-
-- **[Open Notebook Setup](docs/services/open-notebook-setup.md)** - Local AI podcast generation configuration
-- **[Karakeep API Reference](docs/api/karakeep-api-reference.md)** - REST API documentation and examples
-- **[Karakeep Podcast Workflow](docs/services/karakeep-podcast-workflow.md)** - Automated bookmark-to-podcast pipeline
-- **[Productivity System Plan](docs/planning/buds-productivity-system-plan.md)** - Overall system design
-- **[GitHub Repo Structure](docs/planning/github-repo-structure-plan.md)** - Repository organization
-
-See [docs/README.md](docs/README.md) for complete documentation index.
-See [Restore Runbook](docs/restore.md) and [Service Inventory](docs/services/inventory.md) for operations reference.
-
-## Related Repositories
-
-- **Productivity System**: `obsidian-vault` repo
-- **Personal Projects**: `coding` repo
-- **Secrets**: `homelab-secrets` repo (Gitea only - never on GitHub)
+---
 
 ## Troubleshooting
 
+### Docker Desktop won't start after an update
+
+This happens when Docker's update ships a new `desktop.img` incompatible with the existing virtual disk. **Your data on the network drive is always safe** — all volumes are bind-mounted to `/Volumes/docker/`.
+
+```bash
+# 1. Check the virtualization log to confirm the cause
+tail -30 ~/Library/Containers/com.docker.docker/Data/log/host/com.docker.virtualization.log
+# Look for: "VM has stopped: Invalid virtual machine configuration. The storage device attachment is invalid."
+
+# 2. Kill Docker fully
+killall -9 com.docker.vmnetd com.docker.backend Docker 2>/dev/null
+
+# 3. Delete the virtual disk (recreated fresh on next launch)
+rm ~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw
+
+# 4. Relaunch Docker Desktop
+```
+
 ### Service won't start
 ```bash
-# Check logs
 docker compose logs [service-name]
-
-# Check if port is already in use
-lsof -i :[port-number]
-
-# Verify environment variables
-docker compose config
+lsof -i :[port-number]    # check if port is in use
+docker compose config     # validate compose syntax
 ```
 
 ### Karakeep AI tagging not working
 ```bash
-# Check Ollama is running on host
-curl http://localhost:11434/api/tags
-
-# Verify model is downloaded
-ollama list
-
-# Check Karakeep can reach Ollama
-docker exec karakeep curl http://host.docker.internal:11434/api/tags
+curl http://localhost:11434/api/tags                              # Ollama running?
+ollama list                                                       # model downloaded?
+docker exec karakeep curl http://host.docker.internal:11434/api/tags  # container can reach Ollama?
 ```
 
 ### Out of disk space
 ```bash
-# Check Docker disk usage
 docker system df
-
-# Clean up unused images/volumes
 docker system prune -a --volumes
 ```
 
-## Development
+---
 
-### Testing Changes
+## Security
 
-1. Make changes to `compose.yml`
-2. Test with docker compose:
-   ```bash
-   docker compose config  # Validate syntax
-   docker compose up -d [service-name]  # Test specific service
-   ```
-3. Commit to Git after verification
+**NEVER commit actual `.env` files.** Secrets live in the `homelab-secrets` Gitea repo (local network only). This repo contains templates and infrastructure-as-code only.
 
-### Adding New Services
-
-1. Add service definition to `compose.yml`
-2. Create `.env.[service].template` if needed
-3. Update this README with port mapping and description
-4. Test deployment
-5. Commit changes
-
-## System Requirements
-
-- **Minimum**: 8GB RAM, 4 CPU cores, 100GB storage
-- **Recommended**: 16GB+ RAM, 8+ CPU cores, 500GB+ storage
-- **Tested on**: Mac Mini M1/M2/M4, Docker Desktop, macOS Sonoma+
-
-## Notes
-
-- Ollama runs natively on Mac Mini (not containerized) for better performance
-- Tailscale provides secure remote access to all services
-- All services use health checks and automatic restart policies
-- Resource limits prevent any single service from consuming all resources
+```bash
+# Verify before any commit to GitHub
+git ls-files | grep "env/"        # should ONLY show *.template files
+git check-ignore env/.env         # should output: env/.env
+```
 
 ---
 
-**Created**: December 8, 2024
-**Status**: Active Development
-**Owner**: Bud
+## Backup Strategy
+
+- **Container data**: `/Volumes/docker/container_configs/` — back up this directory
+- **Secrets**: `env/.env*` files stored in Gitea `homelab-secrets` repo
+- **Gitea backup**: `docker exec alpine-utility /scripts/export_gitea_backup.sh`
+- See `alpine-utility/docker-monitor.sh` for automated health checks
+
+---
+
+## Documentation
+
+- [Open Notebook Setup](docs/services/open-notebook-setup.md)
+- [Karakeep API Reference](docs/api/karakeep-api-reference.md)
+- [Karakeep Podcast Workflow](docs/services/karakeep-podcast-workflow.md)
+- [Restore Runbook](docs/restore.md)
+- [Service Inventory](docs/services/inventory.md)
+- [Full Docs Index](docs/README.md)
+
+## Related Repositories
+
+- **Secrets**: `homelab-secrets` (Gitea only — never on GitHub)
+- **Productivity**: `obsidian-vault`
+- **Projects**: `coding`
