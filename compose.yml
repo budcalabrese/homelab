@@ -8,6 +8,9 @@ services:
     volumes:
       - ${DOCKER_CONFIG_ROOT}/open-webui:/app/backend/data
     environment:
+      # Required secret key
+      - WEBUI_SECRET_KEY=49bac2c55aeed01056132459f6f69f2d99cc69a82bb579544552d24d62d7ac3c
+
       # Ollama Integration
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/
 
@@ -304,6 +307,32 @@ services:
     mem_limit: 1G
     cpus: "2.0"
 
+  garage-tracker:
+    build: ${CODING_ROOT}/garage-tracker
+    container_name: garage-tracker
+    ports:
+      - "8504:8501"
+    volumes:
+      - ${DOCKER_CONFIG_ROOT}/garage-tracker/app-data:/app/data
+      - ${HOME_SPACE_ROOT}/home/car_logs:/car_logs:ro
+    environment:
+      - GARAGE_DB=/app/data/garage.db
+      - GARAGE_LOGS=/car_logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512M
+    cpus: "1.0"
+
   learning-dashboard:
     build: ${CODING_ROOT}/python-learning-dashboard
     container_name: learning-dashboard
@@ -464,6 +493,9 @@ services:
       # Karakeep backup volumes
       - ${DOCKER_CONFIG_ROOT}/karakeep/data:/mnt/karakeep:ro
       - ${BACKUPS_ROOT}/karakeep:/mnt/backups/karakeep
+      # Garage tracker backup volumes
+      - ${DOCKER_CONFIG_ROOT}/garage-tracker/app-data:/mnt/garage-tracker:ro
+      - ${BACKUPS_ROOT}/garage-tracker:/mnt/backups/garage-tracker
       # Gitea backup volumes
       - ${DOCKER_CONFIG_ROOT}/gitea:/mnt/gitea:ro
       - ${BACKUPS_ROOT}/gitea:/mnt/backups/gitea
