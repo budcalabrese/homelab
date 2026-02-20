@@ -99,15 +99,17 @@ See [podcast-automation/README.md](podcast-automation/README.md) for setup.
 | n8n | 5678 | http://localhost:5678 |
 | SearXNG | 8081 | http://localhost:8081 |
 | MeTube | 8082 | http://localhost:8082 |
-| Open Notebook | 8503 | http://localhost:8503 |
+| Open Notebook | 8503 | http://localhost:8503 (disabled) |
 | OpenEDAI Speech | 8000 | http://localhost:8000 |
 | Budget Dashboard | 8501 | http://localhost:8501 |
 | Learning Dashboard | 8502 | http://localhost:8502 |
+| Garage Tracker | 8504 | http://localhost:8504 |
 | AudioBookShelf | 13378 | http://localhost:13378 |
 | YouTube Transcripts | 5001 | http://localhost:5001 |
 | Wyoming Whisper | 10300 | - |
 | Wyoming Piper | 10200 | - |
 | Wyoming OpenWakeWord | 10400 | - |
+| Victoria Logs | 9428 | http://localhost:9428 |
 | Alpine Utility (SSH) | 2223 | ssh://localhost:2223 |
 
 **Volume location**: `/Volumes/docker/container_configs/` (network drive — all container data persists here, safe across Docker resets)

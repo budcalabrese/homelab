@@ -131,7 +131,11 @@ Runs on the 1st to summarize the previous month's weekly notes:
 
 ### Quick credential setup
 1. **Karakeep API token**: Karakeep → Settings → API Tokens → create "n8n Automation"
-2. **SSH**: Settings → Credentials → SSH → host: `alpine-utility`, port: `22`, user: `root`, key from setup script
+2. **SSH**: Settings → Credentials → SSH Password account
+   - Host: `host.docker.internal`
+   - Port: `2223`
+   - Username: `root`
+   - Password: Value of `ALPINE_UTILITY_PASSWORD` from env/.env
 3. Import all JSON workflow files, assign credentials, activate
 
 ---
