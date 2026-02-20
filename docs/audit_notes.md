@@ -81,42 +81,49 @@
 
 ---
 
-## Phase 3: Documentation & Nice-to-Haves (MEDIUM PRIORITY)
+## Phase 3: Documentation & Nice-to-Haves (MEDIUM PRIORITY - ✅ COMPLETE)
 
 ### Documentation Sync
 
-- [ ] **Update n8n SSH documentation**
+- [x] **Update n8n SSH documentation**
   - Files: `homelab/n8n-workflows/README.md:134`, `homelab/AGENTS.md:37-43`
   - Issue: Docs still show `alpine-utility:22` key auth, but we use `host.docker.internal:2223` password auth
   - Fix: Update README to match current approach
+  - **Status**: ✅ Fixed - commit c9df57a (AGENTS.md was already correct)
 
-- [ ] **Sync port tables in README**
+- [x] **Sync port tables in README**
   - File: `homelab/README.md:93-112`
   - Issue: Missing `garage-tracker` (8504) and `victoria-logs` (9428)
   - Fix: Add missing services to port table
+  - **Status**: ✅ Fixed - commit c9df57a
 
-- [ ] **Fix learning dashboard filename references**
+- [x] **Fix learning dashboard filename references**
   - File: `coding/python-learning-dashboard/README.md:27, :75`
   - Issue: References wrong filename
-  - Status: ✅ Already fixed in previous work
+  - **Status**: ✅ Already fixed in previous work
 
 ### Service Improvements
 
-- [ ] **Activate or remove Centralized Error Notification workflow**
+- [x] **Activate Centralized Error Notification workflow**
   - File: `homelab/n8n-workflows/Centralized Error Notification.json:81`
   - Issue: `"active": false` means silent failures
-  - Fix: Either activate it or ensure all workflows have explicit failure notifications
+  - Fix: Activated the workflow for global error monitoring
+  - **Status**: ✅ Fixed - commit c9df57a
+
+- [x] **Add timeout to transcript API**
+  - File: `coding/youtube-transcripts-api/youtube-transcripts-api.py:124`
+  - Issue: No timeout on subtitle fetch = potential hang
+  - Fix: Add `requests.get(subtitle_url, timeout=(5, 20))`
+  - **Status**: ✅ Fixed - commit 1f7de2e
+
+### Deferred Items (Low Priority)
 
 - [ ] **Add health checks to services**
   - File: `homelab/compose.yml`
   - Missing health checks on: wyoming-whisper, wyoming-piper, wyoming-openwakeword, metube,
     karakeep-meilisearch, karakeep-chrome, karakeep, audiobookshelf, tailscale, alpine-utility, fluent-bit
   - Fix: Add lightweight HTTP/TCP/command probes per service
-
-- [ ] **Add timeout to transcript API**
-  - File: `coding/youtube-transcripts-api/youtube-transcripts-api.py:124`
-  - Issue: No timeout on subtitle fetch = potential hang
-  - Fix: Add `requests.get(subtitle_url, timeout=(5, 20))`
+  - **Status**: Deferred - not critical, containers are running stable
 
 ### Workflow Improvements (LOW PRIORITY)
 
@@ -167,7 +174,7 @@
 ### Current Progress
 - ✅ Phase 1 Complete: Data integrity fixes (commit 6fbefc1)
 - ✅ Phase 2 Complete: Backup script robustness (commit a1a4f32)
-- ⏳ Phase 3 In Progress: Documentation & Nice-to-Haves
+- ✅ Phase 3 Complete: Documentation sync & service improvements (commits c9df57a, 1f7de2e)
 
 ### What to Audit Next
 
@@ -213,6 +220,18 @@
 ---
 
 **Work Log:**
-- 2026-02-20 16:00: Phase 1 complete (data integrity)
-- 2026-02-20 16:15: Phase 2 complete (backup robustness)
-- 2026-02-20 16:20: Ready for Phase 3 (documentation sync)
+- 2026-02-20 16:00: Phase 1 complete (data integrity) - commits 6fbefc1
+- 2026-02-20 16:15: Phase 2 complete (backup robustness) - commit a1a4f32
+- 2026-02-20 16:30: Phase 3 complete (documentation & services) - commits c9df57a, 1f7de2e
+- 2026-02-20 16:35: All critical and high priority items complete
+
+**Summary of All Changes:**
+- Fixed 4 data integrity issues (atomic writes, error handling)
+- Improved 5 backup scripts (strict mode, locks, disk checks)
+- Updated documentation (SSH setup, port table)
+- Activated error notification workflow
+- Added API timeout to prevent hangs
+
+**What's Left:**
+- Health checks on 11 services (deferred - low priority)
+- Other low-priority items from original audit remain optional
