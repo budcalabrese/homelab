@@ -178,44 +178,47 @@
 
 ### What to Audit Next
 
-**Priority 1: Verify Phase 1 & 2 Implementation**
-1. Review the two commits (6fbefc1, a1a4f32) to confirm all fixes were correctly implemented
-2. Check for any edge cases or missed scenarios in:
-   - Atomic write implementation (are temp files cleaned up on error?)
-   - Backup script lock cleanup (does trap handle all exit scenarios?)
-   - Disk space checks (are thresholds appropriate for actual usage?)
+**All Priority 1-3 Items Complete! ✅**
 
-**Priority 2: Phase 3 - Documentation Sync**
-3. Review and update n8n workflow documentation
-   - Files: `homelab/n8n-workflows/README.md`, `homelab/AGENTS.md`
-   - Issue: SSH setup docs still reference old approach
-   - Fix needed: Update to `host.docker.internal:2223` password auth
+All critical and high-priority fixes from the original audit have been implemented across 3 phases.
+Below are recommended next-level audits if you want to go deeper.
 
-4. Review homelab README port table completeness
-   - File: `homelab/README.md:93-112`
-   - Missing services: garage-tracker (8504), victoria-logs (9428)
-   - Verify all published ports from compose.yml are documented
+**Optional Deep-Dive Audits:**
 
-**Priority 3: Service Health & Reliability**
-5. Review n8n workflow active/inactive status
-   - Should "Centralized Error Notification" workflow be activated?
-   - Are all other workflows properly configured for failure handling?
+1. **Verify Implementation Quality**
+   - Review commits (6fbefc1, a1a4f32, c9df57a, 1f7de2e) for edge cases
+   - Test atomic write error handling (do temp files clean up properly?)
+   - Verify backup script trap handles ALL exit scenarios (SIGTERM, SIGKILL, etc.)
+   - Are disk space thresholds appropriate for actual backup sizes?
 
-6. Recommend which services should have health checks added
-   - Priority services needing health checks
-   - Suggested health check implementation per service
+2. **Backup Strategy Architecture**
+   - Should we implement backup verification/testing process?
+   - Are 7-day (Karakeep) and 30-day (Gitea/Garage) retention periods optimal?
+   - Would incremental backups be worth the complexity?
+   - Should we add backup health monitoring (beyond error emails)?
 
-**Priority 4: Code Quality Review**
-7. Review Python app improvements beyond Phase 1
-   - Transcript API timeout implementation
-   - Error message sanitization
-   - Any other code quality patterns worth standardizing
+3. **n8n Workflow Optimization**
+   - Review all workflows for deprecated node usage (executeCommand → SSH)
+   - Are hardcoded IPs in workflows acceptable long-term?
+   - Should we standardize error handling across all workflows?
+   - Review cron expressions for edge cases (month-end, leap years, etc.)
 
-**Questions for Next Audit:**
-- Are there any architectural concerns with the current backup strategy?
-- Should we implement a backup verification/testing process?
-- Are the mutual exclusion locks sufficient, or should we add logging/monitoring?
-- Any security concerns with the current n8n workflow setup beyond the Gitea token issue?
+4. **Service Health Monitoring**
+   - Which 11 services without health checks need them most urgently?
+   - Recommend specific health check commands per service
+   - Should we implement a monitoring dashboard (beyond docker-monitor.sh)?
+
+5. **Security Hardening**
+   - Review secrets management (are all secrets in env/.env properly documented?)
+   - Audit Docker network isolation (do services have appropriate access?)
+   - Review n8n credential rotation strategy
+   - Are there any exposed endpoints that should be restricted?
+
+6. **Code Quality Patterns**
+   - Should Python apps share a common JSON utility library?
+   - Review error message sanitization across all apps
+   - Standardize logging patterns across services
+   - Review Docker image update strategy (pinned versions vs latest)
 
 ---
 
