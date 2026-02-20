@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Karakeep Backup Script
 # This script backs up the karakeep SQLite database and data directory
@@ -10,9 +11,24 @@ DATA_DIR="/mnt/karakeep"
 BACKUP_DIR="/mnt/backups/karakeep"
 DATE_FORMAT=$(date +%Y-%m-%d_%H-%M-%S)
 TIMESTAMP=$(date +%Y-%m-%d)
+LOCKFILE="/tmp/karakeep_backup.lock"
+
+# Mutual exclusion lock - prevent concurrent runs
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+    echo "Error: Another backup is already running (lock exists at $LOCKFILE)"
+    exit 1
+fi
+trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
+
+# Check available disk space (require at least 1GB free)
+AVAILABLE_MB=$(df -m "$BACKUP_DIR" | awk 'NR==2 {print $4}')
+if [ "$AVAILABLE_MB" -lt 1024 ]; then
+    echo "Error: Insufficient disk space. Available: ${AVAILABLE_MB}MB, Required: 1024MB"
+    exit 1
+fi
 
 # Check if data directory exists
 if [ ! -d "$DATA_DIR" ]; then
@@ -45,7 +61,8 @@ if [ $? -eq 0 ]; then
     cd "$BACKUP_DIR" || exit 1
 
     # Find and delete old backups, handling permission errors gracefully
-    ls -t | tail -n +8 | while read -r backup_dir; do
+    # Only match karakeep_backup_* pattern to avoid accidental deletion
+    ls -t karakeep_backup_* 2>/dev/null | tail -n +8 | while read -r backup_dir; do
         if [ -d "$backup_dir" ]; then
             # Try to fix permissions first, then remove
             chmod -R u+w "$backup_dir" 2>/dev/null || true

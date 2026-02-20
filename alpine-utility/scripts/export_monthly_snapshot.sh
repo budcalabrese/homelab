@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Monthly Budget Export Script
 # This script exports budget data to CSV format for monthly snapshots
@@ -18,9 +19,24 @@ DATE_FORMAT=$(date +%m_%d_%Y)
 TIMESTAMP=$(date +%Y-%m-%d)
 OUTPUT_CSV="${SNAPSHOT_DIR}/budget_snapshot_${DATE_FORMAT}.csv"
 OUTPUT_JSON="${SNAPSHOT_DIR}/budget_data_${DATE_FORMAT}.json"
+LOCKFILE="/tmp/monthly_snapshot.lock"
+
+# Mutual exclusion lock - prevent concurrent runs
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+    echo "Error: Another export is already running (lock exists at $LOCKFILE)"
+    exit 1
+fi
+trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 # Create snapshot directory if it doesn't exist
 mkdir -p "$SNAPSHOT_DIR"
+
+# Check available disk space (require at least 100MB free)
+AVAILABLE_MB=$(df -m "$SNAPSHOT_DIR" | awk 'NR==2 {print $4}')
+if [ "$AVAILABLE_MB" -lt 100 ]; then
+    echo "Error: Insufficient disk space. Available: ${AVAILABLE_MB}MB, Required: 100MB"
+    exit 1
+fi
 
 # Check if data file exists
 if [ ! -f "$DATA_FILE" ]; then

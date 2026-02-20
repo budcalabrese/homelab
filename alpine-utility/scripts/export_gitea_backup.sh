@@ -6,17 +6,32 @@
 # Retains 30 days of backups
 
 # Exit immediately if any command fails
-set -e
+set -euo pipefail
 
 # Configuration
 # Paths are for alpine-utility container with mounted volumes
 BACKUP_DIR="/mnt/backups/gitea"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 RETENTION_DAYS=30
+LOCKFILE="/tmp/gitea_backup.lock"
+
+# Mutual exclusion lock - prevent concurrent runs
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+    echo "Error: Another Gitea backup is already running (lock exists at $LOCKFILE)"
+    exit 1
+fi
+trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 # Create backup directories if they don't exist
 mkdir -p "${BACKUP_DIR}/database"
 mkdir -p "${BACKUP_DIR}/repositories"
+
+# Check available disk space (require at least 5GB free for Gitea backups)
+AVAILABLE_MB=$(df -m "$BACKUP_DIR" | awk 'NR==2 {print $4}')
+if [ "$AVAILABLE_MB" -lt 5120 ]; then
+    echo "Error: Insufficient disk space. Available: ${AVAILABLE_MB}MB, Required: 5120MB"
+    exit 1
+fi
 
 echo "========================================"
 echo "Gitea Backup - ${TIMESTAMP}"

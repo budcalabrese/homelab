@@ -1,6 +1,7 @@
 #!/bin/bash
+set -euo pipefail
 
-# Monthly Budget Export Script
+# Monthly Budget Export Script (GF)
 # This script exports budget data to CSV format for monthly snapshots
 # Designed to be triggered by n8n on the last day of each month
 
@@ -18,9 +19,24 @@ DATE_FORMAT=$(date +%m_%d_%Y)
 TIMESTAMP=$(date +%Y-%m-%d)
 OUTPUT_CSV="${SNAPSHOT_DIR}/budget_snapshot_gf_${DATE_FORMAT}.csv"
 OUTPUT_JSON="${SNAPSHOT_DIR}/budget_data_gf_${DATE_FORMAT}.json"
+LOCKFILE="/tmp/monthly_snapshot_gf.lock"
+
+# Mutual exclusion lock - prevent concurrent runs
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+    echo "Error: Another GF export is already running (lock exists at $LOCKFILE)"
+    exit 1
+fi
+trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 # Create snapshot directory if it doesn't exist
 mkdir -p "$SNAPSHOT_DIR"
+
+# Check available disk space (require at least 100MB free)
+AVAILABLE_MB=$(df -m "$SNAPSHOT_DIR" | awk 'NR==2 {print $4}')
+if [ "$AVAILABLE_MB" -lt 100 ]; then
+    echo "Error: Insufficient disk space. Available: ${AVAILABLE_MB}MB, Required: 100MB"
+    exit 1
+fi
 
 # Check if data file exists
 if [ ! -f "$DATA_FILE" ]; then
@@ -59,14 +75,23 @@ export_items() {
     paycheck_total=$(jq '[.paychecks[]? | .amount // 0] | add // 0' "$DATA_FILE")
     income_total=$(calculate_total "income")
     total_income=$(echo "$paycheck_total + $income_total" | bc)
+
+    # Support both old (expenses) and new (needs/wants) format
+    needs_total=$(calculate_total "needs")
+    wants_total=$(calculate_total "wants")
     expenses_total=$(calculate_total "expenses")
+
     bills_total=$(calculate_total "bills")
     debt_total=$(calculate_total "debt")
     savings_total=$(calculate_total "savings")
 
     echo "Total Income,\$$total_income"
     echo "Total Bills,\$$bills_total"
-    echo "Total Expenses,\$$expenses_total"
+    echo "Total Needs,\$$needs_total"
+    echo "Total Wants,\$$wants_total"
+    if [ "$expenses_total" != "0" ]; then
+        echo "Total Expenses (legacy),\$$expenses_total"
+    fi
     echo "Total Debt Payments,\$$debt_total"
     echo "Total Savings,\$$savings_total"
 
@@ -80,8 +105,8 @@ export_items() {
 
     echo ""
 
-    # Export each category
-    for category in paychecks income expenses bills debt debt_balances savings; do
+    # Export each category (includes both old 'expenses' and new 'needs'/'wants')
+    for category in paychecks income needs wants expenses bills debt debt_balances savings; do
         category_upper=$(echo "$category" | tr '[:lower:]' '[:upper:]')
         echo "$category_upper"
 

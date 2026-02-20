@@ -5,14 +5,29 @@
 # Triggered nightly by n8n at 4 AM
 # Retains 30 days of backups
 
-set -e
+set -euo pipefail
 
 BACKUP_DIR="/mnt/backups/garage-tracker"
 SOURCE_DB="/mnt/garage-tracker/garage.db"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 RETENTION_DAYS=30
+LOCKFILE="/tmp/garage_backup.lock"
+
+# Mutual exclusion lock - prevent concurrent runs
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+    echo "Error: Another garage backup is already running (lock exists at $LOCKFILE)"
+    exit 1
+fi
+trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 mkdir -p "${BACKUP_DIR}"
+
+# Check available disk space (require at least 500MB free)
+AVAILABLE_MB=$(df -m "$BACKUP_DIR" | awk 'NR==2 {print $4}')
+if [ "$AVAILABLE_MB" -lt 500 ]; then
+    echo "Error: Insufficient disk space. Available: ${AVAILABLE_MB}MB, Required: 500MB"
+    exit 1
+fi
 
 echo "========================================"
 echo "Garage Tracker Backup - ${TIMESTAMP}"
