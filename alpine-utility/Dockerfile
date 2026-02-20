@@ -11,6 +11,7 @@ RUN apk add --no-cache \
     coreutils \
     git \
     zip \
+    bc \
     && rm -rf /var/cache/apk/*
 
 # Configure SSH

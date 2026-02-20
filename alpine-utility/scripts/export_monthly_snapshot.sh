@@ -59,14 +59,23 @@ export_items() {
     paycheck_total=$(jq '[.paychecks[]? | .amount // 0] | add // 0' "$DATA_FILE")
     income_total=$(calculate_total "income")
     total_income=$(echo "$paycheck_total + $income_total" | bc)
+
+    # Support both old (expenses) and new (needs/wants) format
+    needs_total=$(calculate_total "needs")
+    wants_total=$(calculate_total "wants")
     expenses_total=$(calculate_total "expenses")
+
     bills_total=$(calculate_total "bills")
     debt_total=$(calculate_total "debt")
     savings_total=$(calculate_total "savings")
 
     echo "Total Income,\$$total_income"
     echo "Total Bills,\$$bills_total"
-    echo "Total Expenses,\$$expenses_total"
+    echo "Total Needs,\$$needs_total"
+    echo "Total Wants,\$$wants_total"
+    if [ "$expenses_total" != "0" ]; then
+        echo "Total Expenses (legacy),\$$expenses_total"
+    fi
     echo "Total Debt Payments,\$$debt_total"
     echo "Total Savings,\$$savings_total"
 
@@ -80,8 +89,8 @@ export_items() {
 
     echo ""
 
-    # Export each category
-    for category in paychecks income expenses bills debt debt_balances savings; do
+    # Export each category (includes both old 'expenses' and new 'needs'/'wants')
+    for category in paychecks income needs wants expenses bills debt debt_balances savings; do
         category_upper=$(echo "$category" | tr '[:lower:]' '[:upper:]')
         echo "$category_upper"
 

@@ -8,8 +8,8 @@ services:
     volumes:
       - ${DOCKER_CONFIG_ROOT}/open-webui:/app/backend/data
     environment:
-      # Required secret key
-      - WEBUI_SECRET_KEY=49bac2c55aeed01056132459f6f69f2d99cc69a82bb579544552d24d62d7ac3c
+      # Required secret key (stored in env/.env)
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
 
       # Ollama Integration
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/
@@ -343,6 +343,7 @@ services:
       - ${DOCKER_CONFIG_ROOT}/learning-dashboard/app-data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
+      - DATA_FILE_PATH=/app/data/learning_progress.json
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8501/_stcore/health || exit 1"]
@@ -399,33 +400,34 @@ services:
     mem_limit: 512M
     cpus: "1.0"
 
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest-single
-    container_name: open-notebook
-    env_file:
-      - env/.env.open-notebook
-    ports:
-      - "8503:8502"  # Web UI (mapped to 8503 to avoid conflict with learning-dashboard)
-      - "5055:5055"  # API (required!)
-    volumes:
-      - ${DOCKER_CONFIG_ROOT}/open-notebook/notebook_data:/app/data
-      - ${DOCKER_CONFIG_ROOT}/open-notebook/surreal_single_data:/mydata
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5055/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 2G
-    cpus: "2.0"
+  # open-notebook:
+  #   image: lfnovo/open_notebook:v1-latest-single
+  #   container_name: open-notebook
+  #   env_file:
+  #     - env/.env.open-notebook
+  #   ports:
+  #     - "8503:8502"  # Web UI (mapped to 8503 to avoid conflict with learning-dashboard)
+  #     - "5055:5055"  # API (required!)
+  #   volumes:
+  #     - ${DOCKER_CONFIG_ROOT}/open-notebook/notebook_data:/app/data
+  #     - ${DOCKER_CONFIG_ROOT}/open-notebook/surreal_single_data:/mydata
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:5055/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #   mem_limit: 2G
+  #   cpus: "2.0"
+  # DISABLED: SurrealDB 3.0 incompatibility - waiting for upstream fix
 
   openedai-speech:
     image: ghcr.io/matatonic/openedai-speech:latest
