@@ -95,6 +95,7 @@ services:
       - "5678:5678"
     volumes:
       - ${DOCKER_CONFIG_ROOT}/n8n:/home/node/.n8n
+      - ${DOCKER_CONFIG_ROOT}/n8n/.ssh:/home/node/.ssh
       - ${OBSIDIAN_VAULT}:/data/obsidian-vault
     environment:
       # Server Configuration
@@ -479,6 +480,8 @@ services:
     build: ./alpine-utility
     container_name: alpine-utility
     hostname: alpine-utility
+    env_file:
+      - env/.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DOCKER_CONFIG_ROOT}/alpine-utility:/config

@@ -141,10 +141,10 @@ Auto-generated from Karakeep bookmarks
 Total articles: 2 | Generated: 12-08-2024
 ```
 
-**Copy command** (run from n8n via Execute Command node):
+**Copy command** (run from n8n via SSH node using "SSH Password account" credential):
 ```bash
-echo '{{ $json.showNotesB64 }}' | ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility \
-  'TMPF=/tmp/shownotes-$$.b64 && cat > $TMPF && /tmp/copy-podcast.sh "{{ $json.episodeName }}" "{{ $json.audioFile }}" $TMPF'
+echo '{{ $json.showNotesB64 }}' | base64 -d > /tmp/shownotes.txt && \
+/tmp/copy-podcast.sh "{{ $json.episodeName }}" "{{ $json.audioFile }}" /tmp/shownotes.txt
 ```
 Show notes are base64-encoded to safely pass special characters (bullets, newlines, URLs) through SSH.
 

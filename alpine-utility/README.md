@@ -48,20 +48,24 @@ On container start, `init-scripts.sh` restores both files automatically. No manu
 
 | Method | From | Port | Auth |
 |--------|------|------|------|
-| Manual | Host terminal | 2223 | Password (`ALPINE_UTILITY_PASSWORD`) |
-| Automation | n8n container | 22 | SSH key (set up by setup script) |
+| Manual | Host terminal | 2223 | Password (`ALPINE_UTILITY_PASSWORD` from env/.env) |
+| Automation | n8n container | 2223 via `host.docker.internal` | Password (same as above) |
 
 ```bash
 # From host
 ssh -p 2223 root@localhost
+# Password: value of ALPINE_UTILITY_PASSWORD from env/.env
 
-# From n8n (use this in SSH nodes)
-ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility
+# From n8n SSH nodes
+# Credential: "SSH Password account"
+# Host: host.docker.internal
+# Port: 2223
+# Password: value of ALPINE_UTILITY_PASSWORD from env/.env
 ```
 
 ## Calling Scripts from n8n
 
-Use the SSH node (`n8n-nodes-base.ssh`) with credential "SSH Password account":
+Use the SSH node (`n8n-nodes-base.ssh`) with credential "SSH Password account" (ID: JFyXom4nOrhtezt1):
 
 ```bash
 # Monitoring
@@ -102,11 +106,16 @@ docker ps | grep alpine-utility     # is it running?
 docker logs alpine-utility          # check startup errors
 ```
 
-**n8n SSH fails:**
-```bash
-docker exec alpine-utility cat /root/.ssh/authorized_keys   # should have a key
-# If empty: ./alpine-utility/setup-persistent-config.sh
-```
+**n8n SSH fails with "All configured authentication methods failed":**
+1. Check password in n8n credential matches env/.env:
+   ```bash
+   grep ALPINE_UTILITY_PASSWORD /Users/bud/home_space/homelab/env/.env
+   ```
+2. Update n8n credential "SSH Password account" with the correct password
+3. Verify connection:
+   ```bash
+   docker logs alpine-utility | tail -20  # check for "Failed password" messages
+   ```
 
 **Podcast script missing after rebuild:**
 ```bash

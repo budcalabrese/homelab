@@ -24,8 +24,8 @@ Context and rules for AI assistants working with this homelab infrastructure rep
 ### Notable Configurations
 - **Ollama**: Runs natively on Mac Mini (not in Docker) for performance
 - **Tailscale**: VPN access, uses `network_mode: host`
-- **n8n**: All automation workflows
-- **alpine-utility**: Bastion host for script execution
+- **n8n**: All automation workflows, SSH keys persisted to survive restarts
+- **alpine-utility**: Bastion host for script execution, password set via `ALPINE_UTILITY_PASSWORD`
 
 ---
 
@@ -34,9 +34,14 @@ Context and rules for AI assistants working with this homelab infrastructure rep
 The `alpine-utility` container is the bastion host for all automation.
 
 ### Key Facts
-- **SSH from host**: Port 2223, password auth (`ALPINE_UTILITY_PASSWORD`)
-- **SSH from n8n**: Port 22, key-based auth, hostname `alpine-utility`
+- **SSH from host**: Port 2223, password auth (`ALPINE_UTILITY_PASSWORD` from env/.env)
+- **SSH from n8n**: Port 2223 via `host.docker.internal`, password auth (same password)
 - **n8n credential**: "SSH Password account" (ID: JFyXom4nOrhtezt1)
+  - Host: `host.docker.internal`
+  - Port: `2223`
+  - Username: `root`
+  - Password: Value of `ALPINE_UTILITY_PASSWORD` from env/.env
+- **n8n SSH keys**: Persisted at `${DOCKER_CONFIG_ROOT}/n8n/.ssh/` (survives restarts)
 
 ### Volume Mounts
 - `/scripts` → `homelab/alpine-utility/scripts/` (git-tracked, live)
@@ -65,10 +70,11 @@ The `alpine-utility` container is the bastion host for all automation.
 
 ### Rules
 - Always use SSH node to run commands via alpine-utility
-- Connect to hostname: `alpine-utility`, credential: "SSH Password account"
+- Use credential: "SSH Password account" (connects to `host.docker.internal:2223`)
 - SSH node returns `code` field for exit code (not `exitCode`)
 - Store all workflow JSON files in `n8n-workflows/`
 - Update `n8n-workflows/README.md` when adding/modifying workflows
+- If SSH workflows fail with auth errors: check password in credential matches `ALPINE_UTILITY_PASSWORD` in env/.env
 
 ---
 
