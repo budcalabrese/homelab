@@ -18,7 +18,6 @@ if ! mkdir "$LOCKFILE" 2>/dev/null; then
     echo "Error: Another garage backup is already running (lock exists at $LOCKFILE)"
     exit 1
 fi
-trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -44,12 +43,13 @@ fi
 echo "[1/3] Stopping garage-tracker for consistent backup..."
 docker stop garage-tracker
 
-restart_garage() {
+cleanup() {
     echo "[3/3] Starting garage-tracker..."
     docker start garage-tracker
     echo "✓ garage-tracker started"
+    rmdir "$LOCKFILE" 2>/dev/null || true
 }
-trap restart_garage EXIT
+trap cleanup EXIT
 
 # Copy the database file
 echo "[2/3] Backing up garage.db..."

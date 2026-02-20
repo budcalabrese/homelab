@@ -20,7 +20,6 @@ if ! mkdir "$LOCKFILE" 2>/dev/null; then
     echo "Error: Another Gitea backup is already running (lock exists at $LOCKFILE)"
     exit 1
 fi
-trap 'rmdir "$LOCKFILE" 2>/dev/null || true' EXIT
 
 # Create backup directories if they don't exist
 mkdir -p "${BACKUP_DIR}/database"
@@ -45,13 +44,14 @@ echo "========================================"
 echo "[1/3] Stopping Gitea for consistent backup..."
 docker stop gitea
 
-# Use a trap to ensure gitea is always restarted, even if backup fails
-restart_gitea() {
+# Use a trap to ensure gitea is always restarted and lock is cleaned up
+cleanup() {
     echo "[3/3] Starting Gitea..."
     docker start gitea
     echo "✓ Gitea started"
+    rmdir "$LOCKFILE" 2>/dev/null || true
 }
-trap restart_gitea EXIT
+trap cleanup EXIT
 
 # Backup database using direct file copy (Gitea is stopped, so no lock issues)
 echo "[2/3] Backing up Gitea database and repositories..."
