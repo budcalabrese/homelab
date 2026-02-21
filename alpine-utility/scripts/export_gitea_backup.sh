@@ -47,9 +47,10 @@ docker stop gitea
 # Use a trap to ensure gitea is always restarted and lock is cleaned up
 cleanup() {
     echo "[3/3] Starting Gitea..."
-    docker start gitea
+    docker start gitea || true
     echo "✓ Gitea started"
     rmdir "$LOCKFILE" 2>/dev/null || true
+    return 0
 }
 trap cleanup EXIT
 
