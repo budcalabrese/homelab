@@ -71,9 +71,14 @@ for CONTAINER in $CONTAINERS; do
         ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(TPM: error opening|warnable=warming-up|warnable=login-state.*context canceled)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
         ERROR_COUNT=${ERROR_COUNT:-0}
-    # For karakeep-chrome: exclude D-Bus connection errors (normal for headless Chrome)
+    # For karakeep-chrome: exclude D-Bus, GPU, and WebGL errors (normal for headless Chrome)
     elif [ "$CONTAINER" = "karakeep-chrome" ]; then
-        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(Failed to connect to the bus|system_bus_socket)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(Failed to connect to the bus|system_bus_socket|CheckMediaAccessPermission|GPU stall|ContextResult::kFatalFailure|swiftshader|WebGL|gl_utils\.cc|gles2_cmd_decoder|DaemonVersion.*failed)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+        ERROR_COUNT=${ERROR_COUNT:-0}
+    # For karakeep-meilisearch: exclude "0 failed tasks" success messages
+    elif [ "$CONTAINER" = "karakeep-meilisearch" ]; then
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(0 failed tasks|successful)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
         ERROR_COUNT=${ERROR_COUNT:-0}
     # For karakeep: exclude search query URLs that contain "error" in the query string
