@@ -83,12 +83,12 @@ echo "Cleaning up old backups (keeping last ${RETENTION_DAYS})..."
 # Clean database backups
 cd "${BACKUP_DIR}/database" || exit 1
 ls -t gitea-db-*.db 2>/dev/null | tail -n +$((RETENTION_DAYS + 1)) | xargs -r rm -f
-DB_REMAINING=$(ls -1 gitea-db-*.db 2>/dev/null | wc -l)
+DB_REMAINING=$(ls -1 gitea-db-*.db 2>/dev/null | wc -l) || true
 
 # Clean repository backups
 cd "${BACKUP_DIR}/repositories" || exit 1
 ls -t gitea-repos-*.zip 2>/dev/null | tail -n +$((RETENTION_DAYS + 1)) | xargs -r rm -f
-REPO_REMAINING=$(ls -1 gitea-repos-*.zip 2>/dev/null | wc -l)
+REPO_REMAINING=$(ls -1 gitea-repos-*.zip 2>/dev/null | wc -l) || true
 
 echo "✓ Cleanup complete"
 echo "  Database backups retained: ${DB_REMAINING}"
