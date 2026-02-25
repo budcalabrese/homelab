@@ -143,7 +143,8 @@
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "centralized-error-notification"
   },
   "versionId": "new-workflow-garage-backup",
   "meta": {

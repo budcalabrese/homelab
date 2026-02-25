@@ -16,9 +16,7 @@
    - Consider monitoring dashboard beyond docker-monitor.sh
 
 2. **n8n Workflow Cleanup** (Technical Debt)
-   - Replace deprecated `executeCommand` nodes with SSH nodes
-   - Standardize error handling across all workflows
-   - Review cron expressions for edge cases
+   - Replace deprecated `executeCommand` in inactive workflows (budget-export-gf, Karakeep Podcast) when activated
 
 3. **Security Hardening** (Defense in Depth)
    - Audit Docker network isolation
@@ -45,7 +43,6 @@ P3 (later):
 
 1. Karakeep backup copy uses `cp -r "$DATA_DIR"/*` which can miss dotfiles and behaves poorly with empty directories ([export_karakeep_backup.sh:48](../alpine-utility/scripts/export_karakeep_backup.sh#L48))
 2. Retention logic is count-based but described as days in some comments/docs
-3. Monthly workflow cron expression in exported JSON (`28-31`) can run on multiple month-end days unless guarded by "is last day" logic
 
 ### Optional Low-Priority Items
 

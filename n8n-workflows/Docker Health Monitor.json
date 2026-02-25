@@ -176,7 +176,8 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": "centralized-error-notification"
   },
   "versionId": "de23ca33-67fb-4cc3-b9bc-9ce833e2ea73",
   "meta": {

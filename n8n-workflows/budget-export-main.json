@@ -20,7 +20,53 @@
         240,
         300
       ],
-      "notes": "Triggers on last day of month at 11:55 PM"
+      "notes": "Triggers on days 28-31 at 11:55 PM - guard node ensures only last day executes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if today is the last day of the month\nconst today = new Date();\nconst tomorrow = new Date(today);\ntomorrow.setDate(tomorrow.getDate() + 1);\n\n// If tomorrow is day 1, today is last day of month\nconst isLastDay = tomorrow.getDate() === 1;\n\nreturn [{ json: { isLastDay, currentDate: today.toISOString() } }];"
+      },
+      "id": "check-last-day",
+      "name": "Check If Last Day of Month",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        350,
+        300
+      ],
+      "notes": "Ensures export only runs on actual last day of month (handles Feb, 30-day months correctly)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-last-day",
+              "leftValue": "={{ $json.isLastDay }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "last-day-gate",
+      "name": "Last Day Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "notes": "Only proceed to export if isLastDay === true"
     },
     {
       "parameters": {
@@ -31,8 +77,8 @@
       "type": "n8n-nodes-base.ssh",
       "typeVersion": 1,
       "position": [
-        460,
-        300
+        680,
+        200
       ],
       "credentials": {
         "sshPassword": {
@@ -110,11 +156,34 @@
       "main": [
         [
           {
-            "node": "Execute Export Script",
+            "node": "Check If Last Day of Month",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "Check If Last Day of Month": {
+      "main": [
+        [
+          {
+            "node": "Last Day Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last Day Gate": {
+      "main": [
+        [
+          {
+            "node": "Execute Export Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "Execute Export Script": {

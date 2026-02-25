@@ -144,7 +144,8 @@
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "centralized-error-notification"
   },
   "versionId": "fcf3d018-9400-4864-9402-fec4a02b9fab",
   "meta": {
