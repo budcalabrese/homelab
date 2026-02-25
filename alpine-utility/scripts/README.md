@@ -30,6 +30,19 @@ docker exec alpine-utility /scripts/export_gitea_backup.sh
 
 > Requires Docker socket write access to stop/start Gitea. Always stops Gitea before copying the DB — never use `sqlite3 .backup` on a live database.
 
+### export_garage_backup.sh
+- Stops Garage Tracker, backs up SQLite DB, restarts Garage Tracker
+- Keeps last 30 backups
+- **Expected downtime**: 1-2 minutes
+- **Schedule**: Daily at 4 AM CST (10 AM UTC) via n8n `Garage Daily Backup`
+- **Backup location**: `/mnt/backups/garage-tracker/`
+
+```bash
+docker exec alpine-utility /scripts/export_garage_backup.sh
+```
+
+> Requires Docker socket write access to stop/start garage-tracker. Stops the container to ensure consistent SQLite backup.
+
 ### export_monthly_snapshot.sh
 - Exports main budget data to CSV + JSON
 - Reads from `/mnt/budget-dashboard/budget_data.json`
@@ -50,9 +63,19 @@ docker exec alpine-utility /scripts/export_monthly_snapshot.sh
 docker exec alpine-utility /scripts/export_monthly_snapshot_gf.sh
 ```
 
+### verify_backups.sh
+- Verifies all backup artifacts are fresh and restorable
+- Tests SQLite integrity, zip integrity, JSON/CSV syntax
+- Outputs JSON health report to `/mnt/backups/health/`
+- **Schedule**: Daily at 5:15 AM via n8n `Backup Verification Daily`
+
+```bash
+docker exec alpine-utility /scripts/verify_backups.sh
+```
+
 ---
 
-## Monitoring Script
+## Monitoring Scripts
 
 ### docker-monitor.sh
 - Checks health of all containers + Gitea API

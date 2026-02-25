@@ -1,0 +1,192 @@
+{
+  "name": "Backup Verification Daily",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 5 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "schedule-trigger-backup-verify",
+      "notes": "Runs daily at 5:15 AM (after all backup scripts complete)"
+    },
+    {
+      "parameters": {
+        "command": "bash -c \"/scripts/verify_backups.sh\""
+      },
+      "name": "SSH - Run Verification Script",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "id": "ssh-run-verification",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      },
+      "continueOnFail": true,
+      "notes": "Executes backup verification via SSH to alpine-utility"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-exit-code",
+              "leftValue": "={{ $json.code }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "check-if-failed",
+      "name": "Check If Failed"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse verification output and format for email\nconst sshOutput = $input.first().json;\nconst stdout = sshOutput.stdout || '';\nconst stderr = sshOutput.stderr || '';\nconst exitCode = sshOutput.code || 0;\n\nconst timestamp = new Date().toLocaleString('en-US', { \n  timeZone: 'America/Chicago',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit',\n  hour12: true\n});\n\n// Try to parse the JSON health report if available\nlet healthReport = null;\ntry {\n  // Extract JSON from stdout if present\n  const jsonMatch = stdout.match(/\\{[\\s\\S]*\"timestamp\"[\\s\\S]*\\}/m);\n  if (jsonMatch) {\n    healthReport = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  console.log('Could not parse health report JSON:', e);\n}\n\n// Format HTML email\nlet html = '<div style=\"font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;\">';\nhtml += '<div style=\"background-color: #dc3545; color: white; padding: 20px; border-radius: 5px 5px 0 0;\">';\nhtml += '<h1 style=\"margin: 0; font-size: 24px;\">❌ Backup Verification Failed</h1>';\nhtml += '</div>';\n\nhtml += '<div style=\"background-color: #f8f9fa; padding: 20px; border: 1px solid #dee2e6; border-top: none;\">';\n\n// Verification Information\nhtml += '<h2 style=\"color: #495057; font-size: 18px; margin-top: 0;\">📋 Verification Details</h2>';\nhtml += '<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 20px;\">';\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold; width: 150px;\">Time:</td><td style=\"padding: 8px;\">${timestamp} CST</td></tr>`;\nhtml += `<tr><td style=\"padding: 8px; font-weight: bold;\">Exit Code:</td><td style=\"padding: 8px;\">${exitCode}</td></tr>`;\nif (healthReport) {\n  html += `<tr><td style=\"padding: 8px; font-weight: bold;\">Overall Status:</td><td style=\"padding: 8px;\">${healthReport.overall_status}</td></tr>`;\n}\nhtml += '</table>';\n\n// Check Results (if health report available)\nif (healthReport && healthReport.checks) {\n  html += '<h2 style=\"color: #dc3545; font-size: 18px;\">🔍 Failed Checks</h2>';\n  html += '<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #dee2e6;\">';\n  html += '<tr style=\"background-color: #e9ecef;\"><th style=\"padding: 10px; text-align: left;\">Service</th><th style=\"padding: 10px; text-align: left;\">Status</th><th style=\"padding: 10px; text-align: left;\">Details</th></tr>';\n  \n  for (const [service, result] of Object.entries(healthReport.checks)) {\n    const status = result.status || 'unknown';\n    const details = result.details || 'No details';\n    \n    let statusColor = '#28a745'; // green\n    let statusIcon = '✓';\n    if (status === 'fail') {\n      statusColor = '#dc3545'; // red\n      statusIcon = '✗';\n    } else if (status === 'warn') {\n      statusColor = '#ffc107'; // yellow\n      statusIcon = '⚠';\n    } else if (status === 'skip') {\n      statusColor = '#6c757d'; // gray\n      statusIcon = 'ⓘ';\n    }\n    \n    if (status === 'fail' || status === 'warn') {\n      html += `<tr><td style=\"padding: 10px;\">${service}</td><td style=\"padding: 10px; color: ${statusColor}; font-weight: bold;\">${statusIcon} ${status}</td><td style=\"padding: 10px;\">${details}</td></tr>`;\n    }\n  }\n  \n  html += '</table>';\n}\n\n// Full Output\nhtml += '<h2 style=\"color: #495057; font-size: 18px;\">📄 Verification Output</h2>';\nhtml += '<pre style=\"background: #fff; padding: 15px; border: 1px solid #dee2e6; border-radius: 3px; overflow-x: auto; max-height: 400px; overflow-y: auto; font-size: 12px;\">';\nhtml += stdout;\nhtml += '</pre>';\n\nif (stderr) {\n  html += '<h2 style=\"color: #dc3545; font-size: 18px; margin-top: 20px;\">⚠️ Error Output</h2>';\n  html += '<pre style=\"background: #fff3cd; padding: 15px; border: 1px solid #ffc107; border-radius: 3px; overflow-x: auto; max-height: 200px; overflow-y: auto; font-size: 12px;\">';\n  html += stderr;\n  html += '</pre>';\n}\n\nhtml += '</div>';\n\n// Footer\nhtml += '<div style=\"background-color: #e9ecef; padding: 15px; text-align: center; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 5px 5px; color: #6c757d; font-size: 12px;\">';\nhtml += 'This is an automated backup verification notification';\nhtml += '</div>';\nhtml += '</div>';\n\n// Return formatted data\nreturn {\n  json: {\n    timestamp,\n    exitCode,\n    healthReport,\n    emailSubject: '❌ Backup Verification Failed - ' + timestamp,\n    emailBody: html\n  }\n};"
+      },
+      "name": "Format Verification Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        240
+      ],
+      "id": "format-verification-report",
+      "notes": "Parse verification results and format for email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "={{ $json.emailSubject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "name": "Send Failure Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        240
+      ],
+      "id": "send-failure-email",
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      },
+      "notes": "Send detailed email if verification fails"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "SSH - Run Verification Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH - Run Verification Script": {
+      "main": [
+        [
+          {
+            "node": "Check If Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Failed": {
+      "main": [
+        [
+          {
+            "node": "Format Verification Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Format Verification Report": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "errorWorkflow": "centralized-error-notification"
+  },
+  "versionId": "backup-verification-daily",
+  "meta": {
+    "instanceId": "a5b73b5094a8094553ab22c2021e3b23b98129e99a71eae042d1d69dd001a474"
+  },
+  "tags": [
+    {
+      "createdAt": "2026-02-25T00:00:00.000Z",
+      "updatedAt": "2026-02-25T00:00:00.000Z",
+      "id": "backup",
+      "name": "backup"
+    },
+    {
+      "createdAt": "2026-02-25T00:00:00.000Z",
+      "updatedAt": "2026-02-25T00:00:00.000Z",
+      "id": "monitoring",
+      "name": "monitoring"
+    }
+  ]
+}
