@@ -10,14 +10,15 @@
 
 **Pick ONE area to focus on:**
 
-1. **Service Health Monitoring** (Operational Excellence)
+1. **n8n Workflow Cleanup** (Technical Debt - Quick Win)
+   - Delete budget-export-gf workflow (GF dashboard no longer used)
+   - Replace deprecated `executeCommand` in Karakeep Podcast workflow when activated
+   - Estimated effort: 30 minutes
+
+2. **Service Health Monitoring** (Operational Excellence)
    - Prioritize which 11 services need health checks most
    - Design health check commands per service
    - Consider monitoring dashboard beyond docker-monitor.sh
-
-2. **n8n Workflow Cleanup** (Technical Debt)
-   - Replace deprecated `executeCommand` in Karakeep Podcast workflow when activated
-   - Note: budget-export-gf workflow should be deleted (GF dashboard no longer used)
 
 3. **Security Hardening** (Defense in Depth)
    - Audit Docker network isolation
