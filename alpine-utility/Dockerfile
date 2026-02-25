@@ -11,6 +11,8 @@ RUN apk add --no-cache \
     coreutils \
     git \
     zip \
+    unzip \
+    sqlite \
     bc \
     && rm -rf /var/cache/apk/*
 

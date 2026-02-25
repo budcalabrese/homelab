@@ -278,7 +278,7 @@ RESULTS[karakeep]="${KARAKEEP_STATUS}|${KARAKEEP_DETAILS}"
 
 # 4. Verify Budget Dashboard (Main) Monthly Snapshots
 echo ""
-echo "[4/5] Verifying Budget Dashboard monthly snapshots..."
+echo "[4/4] Verifying Budget Dashboard monthly snapshots..."
 
 BUDGET_DIR="${BACKUP_ROOT}/budget-dashboard"
 BUDGET_STATUS="pass"
@@ -354,72 +354,6 @@ fi
 
 RESULTS[budget]="${BUDGET_STATUS}|${BUDGET_DETAILS}"
 
-# 5. Verify Budget Dashboard GF Monthly Snapshots (if exists)
-echo ""
-echo "[5/5] Verifying Budget Dashboard GF monthly snapshots..."
-
-BUDGET_GF_DIR="${BACKUP_ROOT}/budget-dashboard-gf"
-BUDGET_GF_STATUS="pass"
-BUDGET_GF_DETAILS=""
-
-if [ -d "$BUDGET_GF_DIR" ]; then
-    # Check JSON backup
-    NEWEST_BUDGET_GF_JSON=$(get_newest_file "$BUDGET_GF_DIR" "budget_data_*_gf.json")
-    if [ -n "$NEWEST_BUDGET_GF_JSON" ]; then
-        echo "  Latest JSON: $(basename "$NEWEST_BUDGET_GF_JSON")"
-
-        # Check freshness
-        FRESHNESS=$(check_freshness "$NEWEST_BUDGET_GF_JSON" $MONTHLY_BACKUP_THRESHOLD) || {
-            echo "  ⚠️  JSON backup is $FRESHNESS (monthly backup)"
-            BUDGET_GF_STATUS="warn"
-            BUDGET_GF_DETAILS="JSON is $FRESHNESS. "
-        }
-
-        if [ "$BUDGET_GF_STATUS" = "pass" ]; then
-            echo "  ✓ JSON freshness: $FRESHNESS"
-        fi
-
-        # Validate JSON syntax
-        if jq empty "$NEWEST_BUDGET_GF_JSON" 2>/dev/null; then
-            echo "  ✓ JSON syntax: valid"
-        else
-            echo "  ❌ JSON syntax: invalid"
-            BUDGET_GF_STATUS="fail"
-            BUDGET_GF_DETAILS="${BUDGET_GF_DETAILS}Invalid JSON syntax. "
-            EXIT_CODE=1
-        fi
-    else
-        echo "  ⚠️  No budget GF JSON backup found (may not be in use)"
-        BUDGET_GF_STATUS="skip"
-        BUDGET_GF_DETAILS="No backups found (inactive). "
-    fi
-
-    # Check CSV backup
-    NEWEST_BUDGET_GF_CSV=$(get_newest_file "$BUDGET_GF_DIR" "budget_snapshot_*_gf.csv")
-    if [ -n "$NEWEST_BUDGET_GF_CSV" ]; then
-        echo "  Latest CSV: $(basename "$NEWEST_BUDGET_GF_CSV")"
-
-        # Check freshness
-        FRESHNESS=$(check_freshness "$NEWEST_BUDGET_GF_CSV" $MONTHLY_BACKUP_THRESHOLD) || {
-            echo "  ⚠️  CSV backup is $FRESHNESS (monthly backup)"
-            if [ "$BUDGET_GF_STATUS" != "fail" ] && [ "$BUDGET_GF_STATUS" != "skip" ]; then
-                BUDGET_GF_STATUS="warn"
-            fi
-            BUDGET_GF_DETAILS="${BUDGET_GF_DETAILS}CSV is $FRESHNESS. "
-        }
-
-        if [ "$BUDGET_GF_STATUS" = "pass" ]; then
-            echo "  ✓ CSV freshness: $FRESHNESS"
-        fi
-    fi
-else
-    echo "  ⓘ Budget GF directory not found (inactive)"
-    BUDGET_GF_STATUS="skip"
-    BUDGET_GF_DETAILS="Directory not found (inactive). "
-fi
-
-RESULTS[budget_gf]="${BUDGET_GF_STATUS}|${BUDGET_GF_DETAILS}"
-
 # Generate JSON output
 echo ""
 echo "========================================"
@@ -445,10 +379,6 @@ cat > "$HEALTH_JSON" <<EOF
     "budget": {
       "status": "$(echo ${RESULTS[budget]} | cut -d'|' -f1)",
       "details": "$(echo ${RESULTS[budget]} | cut -d'|' -f2-)"
-    },
-    "budget_gf": {
-      "status": "$(echo ${RESULTS[budget_gf]} | cut -d'|' -f1)",
-      "details": "$(echo ${RESULTS[budget_gf]} | cut -d'|' -f2-)"
     }
   }
 }

@@ -16,7 +16,8 @@
    - Consider monitoring dashboard beyond docker-monitor.sh
 
 2. **n8n Workflow Cleanup** (Technical Debt)
-   - Replace deprecated `executeCommand` in inactive workflows (budget-export-gf, Karakeep Podcast) when activated
+   - Replace deprecated `executeCommand` in Karakeep Podcast workflow when activated
+   - Note: budget-export-gf workflow should be deleted (GF dashboard no longer used)
 
 3. **Security Hardening** (Defense in Depth)
    - Audit Docker network isolation

@@ -54,6 +54,15 @@
           },
           "conditions": [
             {
+              "id": "check-exit-code",
+              "leftValue": "={{ $json.code }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            },
+            {
               "id": "check-failure-output",
               "leftValue": "={{ $json.stdout }}",
               "rightValue": "❌ One or more backup verifications failed!",
