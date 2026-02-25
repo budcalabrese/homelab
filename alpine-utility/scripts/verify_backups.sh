@@ -64,7 +64,7 @@ get_newest_file() {
     local dir="$1"
     local pattern="$2"
 
-    ls -t "$dir"/$pattern 2>/dev/null | head -1 || echo ""
+    find "$dir" -maxdepth 1 -name "$pattern" -type f -print 2>/dev/null | sort -r | sed -n '1p'
 }
 
 echo "========================================"
@@ -219,7 +219,7 @@ KARAKEEP_DIR="${BACKUP_ROOT}/karakeep"
 KARAKEEP_STATUS="pass"
 KARAKEEP_DETAILS=""
 
-NEWEST_KARAKEEP=$(ls -td "${KARAKEEP_DIR}"/karakeep_backup_* 2>/dev/null | head -1 || echo "")
+NEWEST_KARAKEEP=$(find "${KARAKEEP_DIR}" -maxdepth 1 -name "karakeep_backup_*" -type d -print 2>/dev/null | sort -r | sed -n '1p')
 if [ -n "$NEWEST_KARAKEEP" ]; then
     echo "  Latest backup: $(basename "$NEWEST_KARAKEEP")"
 
@@ -236,7 +236,7 @@ if [ -n "$NEWEST_KARAKEEP" ]; then
     fi
 
     # Check if backup directory is not empty
-    if [ ! "$(ls -A "$NEWEST_KARAKEEP")" ]; then
+    if [ -z "$(find "$NEWEST_KARAKEEP" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
         echo "  ❌ Backup directory is empty"
         KARAKEEP_STATUS="fail"
         KARAKEEP_DETAILS="${KARAKEEP_DETAILS}Empty backup directory. "
@@ -246,7 +246,7 @@ if [ -n "$NEWEST_KARAKEEP" ]; then
     fi
 
     # Check for SQLite DB if it exists and verify integrity
-    KARAKEEP_DB=$(find "$NEWEST_KARAKEEP" -name "*.db" -type f | head -1)
+    KARAKEEP_DB=$(find "$NEWEST_KARAKEEP" -name "*.db" -type f -print -quit)
     if [ -n "$KARAKEEP_DB" ]; then
         echo "  Testing SQLite DB integrity..."
         cp "$KARAKEEP_DB" "${TEMP_DIR}/karakeep_test.db"
