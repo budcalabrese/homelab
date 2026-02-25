@@ -350,16 +350,22 @@
     },
     {
       "parameters": {
-        "command": "=echo '{{ $json.showNotesB64 }}' | ssh -p 22 -o StrictHostKeyChecking=no root@alpine-utility 'TMPF=/tmp/shownotes-$$.b64 && cat > $TMPF && /tmp/copy-podcast.sh \"{{ $json.episodeName }}\" \"{{ $json.audioFile }}\" $TMPF'"
+        "command": "=TMPF=/tmp/shownotes-$$.b64 && echo '{{ $json.showNotesB64 }}' > $TMPF && /tmp/copy-podcast.sh \"{{ $json.episodeName }}\" \"{{ $json.audioFile }}\" $TMPF"
       },
       "name": "Copy Files via Alpine Utility",
-      "type": "n8n-nodes-base.executeCommand",
+      "type": "n8n-nodes-base.ssh",
       "typeVersion": 1,
       "position": [
         21968,
         2640
       ],
-      "id": "f008b06a-0562-4927-a160-fec7c67dafc5"
+      "id": "f008b06a-0562-4927-a160-fec7c67dafc5",
+      "credentials": {
+        "sshPassword": {
+          "id": "JFyXom4nOrhtezt1",
+          "name": "SSH Password account"
+        }
+      }
     },
     {
       "parameters": {
