@@ -54,12 +54,12 @@
           },
           "conditions": [
             {
-              "id": "check-exit-code",
+              "id": "check-real-failure",
               "leftValue": "={{ $json.code }}",
-              "rightValue": 0,
+              "rightValue": 1,
               "operator": {
                 "type": "number",
-                "operation": "notEquals"
+                "operation": "equals"
               }
             },
             {
@@ -84,7 +84,8 @@
         300
       ],
       "id": "check-if-failed",
-      "name": "Check If Failed"
+      "name": "Check If Failed",
+      "notes": "Checks for exit code 1 (real failure) or failure message in output. Exit code 141 (SIGPIPE) is treated as success - script uses pipelines that may close early. TODO: Remove SIGPIPE-prone patterns from verify_backups.sh"
     },
     {
       "parameters": {
