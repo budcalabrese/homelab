@@ -35,17 +35,18 @@ trap cleanup EXIT
 # JSON output structure
 declare -A RESULTS
 
-# Helper function to check file freshness (in hours)
+# Helper function to check file/directory freshness (in hours)
 check_freshness() {
-    local file=$1
+    local path=$1
     local threshold=$2
 
-    if [ ! -f "$file" ]; then
+    if [ ! -e "$path" ]; then
         echo "missing"
         return 1
     fi
 
-    local file_time=$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null)
+    local file_time
+    file_time=$(stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null)
     local current_time=$(date +%s)
     local age_hours=$(( (current_time - file_time) / 3600 ))
 
@@ -60,10 +61,10 @@ check_freshness() {
 
 # Helper function to get newest file matching pattern
 get_newest_file() {
-    local dir=$1
-    local pattern=$2
+    local dir="$1"
+    local pattern="$2"
 
-    ls -t "${dir}/${pattern}" 2>/dev/null | head -1 || echo ""
+    ls -t "$dir"/$pattern 2>/dev/null | head -1 || echo ""
 }
 
 echo "========================================"
