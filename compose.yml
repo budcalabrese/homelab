@@ -515,35 +515,6 @@ services:
     mem_limit: 128M
     cpus: "0.5"
 
-  victoria-logs:
-    image: docker.io/victoriametrics/victoria-logs:v0.41.0-victorialogs
-    container_name: victoria-logs
-    ports:
-      - "9428:9428"
-    volumes:
-      - ${DOCKER_CONFIG_ROOT}/victoria-logs:/victoria-logs-data
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command:
-      - -storageDataPath=/victoria-logs-data
-      - -retentionPeriod=7d
-      - -loggerLevel=INFO
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9428/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 1G
-    cpus: "2.0"
-
   fluent-bit:
     image: fluent/fluent-bit:latest
     container_name: fluent-bit
