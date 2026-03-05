@@ -32,7 +32,7 @@ actions:
                 - light.hue_color_lamp_3
             data:
               brightness_pct: 80
-              color_temp: 333
+              color_temp_kelvin: 3003
             action: light.turn_on
       - conditions:
           - condition: trigger
@@ -49,7 +49,7 @@ actions:
                 - light.hue_color_lamp_3
             data:
               brightness_pct: 80
-              color_temp: 333
+              color_temp_kelvin: 3003
             action: light.turn_on
       - conditions:
           - condition: trigger

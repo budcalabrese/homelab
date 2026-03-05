@@ -9,25 +9,25 @@ actions:
       entity_id: light.living_room
     data:
       brightness_pct: 100
-      color_temp: 333
+      color_temp_kelvin: 3003
     action: light.turn_on
   - target:
       entity_id: light.tramp_light
     data:
       brightness_pct: 90
-      color_temp: 333
+      color_temp_kelvin: 3003
     action: light.turn_on
   - target:
       entity_id: light.leg_lamp
     data:
       brightness_pct: 90
-      color_temp: 333
+      color_temp_kelvin: 3003
     action: light.turn_on
   - target:
       entity_id: light.front_porch
     data:
       brightness_pct: 100
-      color_temp: 454
+      color_temp_kelvin: 2203
     action: light.turn_on
   - target:
       entity_id: switch.christmas

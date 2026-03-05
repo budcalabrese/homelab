@@ -38,7 +38,7 @@ actions:
                       entity_id: light.kitchen
                     data:
                       brightness_pct: 40
-                      color_temp: 450
+                      color_temp_kelvin: 2222
                     action: light.turn_on
               - conditions:
                   - condition: time
@@ -49,7 +49,7 @@ actions:
                       entity_id: light.kitchen
                     data:
                       brightness_pct: 100
-                      color_temp: 333
+                      color_temp_kelvin: 3003
                     action: light.turn_on
       - conditions:
           - condition: trigger
@@ -69,7 +69,7 @@ actions:
               entity_id: light.kitchen
             data:
               brightness_pct: 40
-              color_temp: 450
+              color_temp_kelvin: 2222
             action: light.turn_on
       - conditions:
           - condition: trigger
@@ -89,7 +89,7 @@ actions:
               entity_id: light.kitchen
             data:
               brightness_pct: 100
-              color_temp: 333
+              color_temp_kelvin: 3003
             action: light.turn_on
       - conditions:
           - condition: trigger
@@ -113,6 +113,6 @@ actions:
               entity_id: light.kitchen
             data:
               brightness_pct: 100
-              color_temp: 333
+              color_temp_kelvin: 3003
             action: light.turn_on
 mode: single
