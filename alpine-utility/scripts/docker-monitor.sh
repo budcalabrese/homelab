@@ -66,9 +66,9 @@ for CONTAINER in $CONTAINERS; do
         ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(Activated workflow|Failed to start Python task runner in internal mode)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
         ERROR_COUNT=${ERROR_COUNT:-0}
-    # For tailscale: exclude TPM and startup warming errors
+    # For tailscale: exclude TPM, startup warming errors, and transient network errors
     elif [ "$CONTAINER" = "tailscale" ]; then
-        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(TPM: error opening|warnable=warming-up|warnable=login-state.*context canceled)" | wc -l 2>/dev/null || echo "0")
+        ERROR_COUNT=$(docker logs "$CONTAINER" --since 24h --tail 100 2>&1 | grep -iE "(error|fatal|exception|failed)" | grep -vE "(TPM: error opening|warnable=warming-up|warnable=login-state.*context canceled|unexpected EOF|PollNetMap:)" | wc -l 2>/dev/null || echo "0")
         ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
         ERROR_COUNT=${ERROR_COUNT:-0}
     # For karakeep-chrome: exclude D-Bus, GPU, and WebGL errors (normal for headless Chrome)
