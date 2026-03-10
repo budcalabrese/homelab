@@ -89,7 +89,7 @@ services:
     cpus: "1.0"
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.10.4
     container_name: n8n
     ports:
       - "5678:5678"
@@ -107,8 +107,9 @@ services:
       # Webhook Configuration
       - WEBHOOK_URL=http://host.docker.internal:5678/
 
-      # Task Runner Configuration
-      - N8N_RUNNERS_TASK_REQUEST_TIMEOUT=300000
+      # Execution Recovery Settings
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -504,6 +505,8 @@ services:
       # Gitea backup volumes
       - ${DOCKER_CONFIG_ROOT}/gitea:/mnt/gitea:ro
       - ${BACKUPS_ROOT}/gitea:/mnt/backups/gitea
+      # n8n database for maintenance
+      - ${DOCKER_CONFIG_ROOT}/n8n:/mnt/n8n
     ports:
       - "2223:22"
     restart: unless-stopped
@@ -513,23 +516,4 @@ services:
         max-size: "10m"
         max-file: "3"
     mem_limit: 128M
-    cpus: "0.5"
-
-  fluent-bit:
-    image: fluent/fluent-bit:latest
-    container_name: fluent-bit
-    ports:
-      - "5140:5140/udp"
-    volumes:
-      - /Users/bud/home_space/homelab/logging/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
-      - /Users/bud/home_space/homelab/logging/fluent-bit/parsers.conf:/fluent-bit/etc/custom-parsers.conf:ro
-    depends_on:
-      - victoria-logs
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 256M
     cpus: "0.5"
