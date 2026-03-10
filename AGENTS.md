@@ -27,6 +27,10 @@ Context and rules for AI assistants working with this homelab infrastructure rep
 - **n8n**: All automation workflows, SSH keys persisted to survive restarts
 - **alpine-utility**: Bastion host for script execution, password set via `ALPINE_UTILITY_PASSWORD`
 
+### Removed Services
+- **victoria-logs**: Removed - no longer in use
+- **fluent-bit**: Removed - was only used for victoria-logs ingestion
+
 ---
 
 ## Alpine-Utility Container
@@ -52,6 +56,11 @@ The `alpine-utility` container is the bastion host for all automation.
 - `/mnt/audiobookshelf` → AudioBookShelf podcasts
 - `/mnt/karakeep` → Karakeep data (for backups)
 - `/mnt/backups/karakeep` → Karakeep backup destination
+- `/mnt/garage-tracker` → Garage tracker data (for backups)
+- `/mnt/backups/garage-tracker` → Garage tracker backup destination
+- `/mnt/gitea` → Gitea data (for backups)
+- `/mnt/backups/gitea` → Gitea backup destination
+- `/mnt/n8n` → n8n database (for maintenance/troubleshooting)
 
 ### Script Development
 - Edit scripts in `alpine-utility/scripts/` — changes are live immediately (no rebuild needed)
@@ -148,6 +157,13 @@ lsof -i :{port}                # check port conflicts
 - SSH exit code → use `code` field, not `exitCode`
 - Empty results → workflow stops if node returns no data (expected)
 
+**n8n crash loop after upgrade:**
+- **Pinned to version 2.10.4** due to incompatibility with 2.11.x task runner architecture
+- Symptom: "Last session crashed" + restarts after "Start Active Workflows"
+- Root cause: n8n 2.11+ requires task runners (internal or external mode)
+- Solution: Stay on 2.10.4 until task runner migration path is clearer
+- Database backup location: `/Volumes/docker/container_configs/n8n/database.sqlite.backup-*`
+
 **Docker Desktop won't start after update:**
 ```bash
 tail -30 ~/Library/Containers/com.docker.docker/Data/log/host/com.docker.virtualization.log
@@ -172,5 +188,5 @@ rm ~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw
 
 ---
 
-**Last Updated**: February 19, 2026
+**Last Updated**: March 10, 2026
 **Repository**: https://github.com/budcalabrese/homelab
