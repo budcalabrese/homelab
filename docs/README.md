@@ -19,6 +19,8 @@ docs/
 
 Configuration and workflow documentation for homelab services.
 
+Only active services and active workflows should be documented here. Retired systems should be removed instead of kept alongside current operations docs.
+
 ### Docker Container Services
 - **[synology-docker-config.md](services/synology-docker-config.md)** - Synology NAS Container Manager configuration
   - Media server stack (Sonarr, Radarr, Jackett, etc.)
@@ -105,4 +107,4 @@ All documentation follows these conventions:
 
 ---
 
-**Last Updated:** December 16, 2025
+**Last Updated:** March 19, 2026

@@ -21,6 +21,14 @@ Scripts are ephemeral but configs survive rebuilds via `/config` volume:
 
 On container start, `init-scripts.sh` restores both files automatically. No manual steps needed after a rebuild.
 
+## Source Of Truth
+
+- Git-tracked runtime scripts live in `alpine-utility/scripts/`
+- Compose mounts that directory into the container as `/scripts`
+- For monitoring and backup automation, edit files in `alpine-utility/scripts/`
+- `copy-podcast.sh` is different: its persistent source is `/config/scripts/copy-podcast.sh`
+- Do not create or edit duplicate script copies elsewhere in `alpine-utility/`
+
 ## First-Time Setup
 
 1. Add to `env/.env`:
@@ -86,10 +94,10 @@ docker exec -it alpine-utility nano /config/scripts/copy-podcast.sh
 docker compose restart alpine-utility  # reloads to /tmp/
 ```
 
-**Monitoring script** (`docker-monitor.sh`) is baked into the image — edit source then rebuild:
-```bash
-docker compose up -d --build alpine-utility
-```
+**Verification checklist before editing scripts:**
+1. Confirm the script is called from `/scripts/...` in the relevant workflow or command
+2. Edit the matching file under `alpine-utility/scripts/`
+3. Do not add a second copy under `alpine-utility/`
 
 ## Adding SSH Keys
 

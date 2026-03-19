@@ -21,12 +21,8 @@ RUN ssh-keygen -A && \
     mkdir -p /root/.ssh && \
     chmod 700 /root/.ssh
 
-# Create scripts directory
+# Create scripts directory (will be mounted from host at runtime)
 RUN mkdir -p /scripts
-
-# Copy monitoring script
-COPY docker-monitor.sh /scripts/docker-monitor.sh
-RUN chmod +x /scripts/docker-monitor.sh
 
 # Copy initialization script to /usr/local/bin
 COPY init-scripts.sh /usr/local/bin/init-scripts.sh

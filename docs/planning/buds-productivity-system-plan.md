@@ -1,5 +1,10 @@
 # Bud's Productivity System
 
+**Status**: Planning
+**Last Reviewed**: March 19, 2026
+
+This document is a strategy note, not an operational runbook. Treat concrete URLs, scripts, and workflow details here as design intent unless they are also reflected in active repo docs.
+
 Self-hosted system for task management, knowledge management, learning, and work tracking.
 
 ## The Stack
@@ -154,7 +159,7 @@ git pull origin main && git add . && git commit -m "Auto-sync: $(date +%Y-%m-%d)
 
 ### iPhone (Mobile Capture)
 - Quick capture → Apple Notes with `#obsidian-inbox` tag → process next day on Mac
-- Read-only reference → MkDocs via Tailscale (`http://192.168.0.9:8085`)
+- Read-only reference → optional published docs view via Tailscale if enabled
 - Fallback → GitHub web interface
 
 ### Docker Configs

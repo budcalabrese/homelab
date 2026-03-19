@@ -24,4 +24,3 @@ This is a quick reference for services, ports, data locations, and dependencies.
 | openedai-speech | 8000 | `${DOCKER_CONFIG_ROOT}/openedai-speech/*` | - | Medium |
 | tailscale | host network | `${DOCKER_CONFIG_ROOT}/tailscale/state` | - | Medium |
 | alpine-utility | 2223 | `${DOCKER_CONFIG_ROOT}/alpine-utility` | docker socket | High |
-| victoria-logs | 9428 | `${DOCKER_CONFIG_ROOT}/victoria-logs` | - | Medium |

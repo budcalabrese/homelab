@@ -27,12 +27,6 @@ Context and rules for AI assistants working with this homelab infrastructure rep
 - **n8n**: All automation workflows, SSH keys persisted to survive restarts
 - **alpine-utility**: Bastion host for script execution, password set via `ALPINE_UTILITY_PASSWORD`
 
-### Removed Services
-- **victoria-logs**: Removed - no longer in use
-- **fluent-bit**: Removed - was only used for victoria-logs ingestion
-
----
-
 ## Alpine-Utility Container
 
 The `alpine-utility` container is the bastion host for all automation.
@@ -66,6 +60,39 @@ The `alpine-utility` container is the bastion host for all automation.
 - Edit scripts in `alpine-utility/scripts/` — changes are live immediately (no rebuild needed)
 - All scripts version-controlled in git
 
+### Canonical Paths
+- Runtime script directory: `alpine-utility/scripts/`
+- Container path for those scripts: `/scripts/`
+- Docker Health Monitor script: `alpine-utility/scripts/docker-monitor.sh`
+- n8n workflow directory: `n8n-workflows/`
+- Service secrets: `env/.env.{service}` (gitignored)
+- Service templates: `env/.env.{service}.template` (committed)
+
+### Negative Rules
+- Do not create duplicate copies of scripts in `alpine-utility/`
+- Do not reintroduce `alpine-utility/docker-monitor.sh`
+- Do not edit files under `env/` unless they are `*.template`
+- Do not create new files unless the task explicitly requires a new file
+- Do not keep retired services documented in active READMEs, indexes, or workflow folders
+
+### Required Verification Before Editing
+1. Read this file plus the nearest relevant README before making changes
+2. Check `compose.yml` for the active bind mount or runtime path
+3. Search for same-named files with `rg --files | rg '<filename>'` before editing
+4. If a task touches alpine-utility monitoring, verify the workflow still calls `/scripts/docker-monitor.sh`
+
+### Known Failure Modes
+- Editing a same-named file outside `alpine-utility/scripts/`
+- Assuming a file copied in a Dockerfile is the live runtime source when Compose bind-mounts over it
+- Creating extra “backup”, “example”, or “fixed” files instead of updating the canonical file
+
+### Repo Invariants
+- Every operational script has exactly one canonical source file
+- Active documentation should describe active services only
+- Retired services should be removed, not left in active indexes or workflow directories
+- `compose.yml`, root `README.md`, subtree READMEs, and workflow docs should agree on runtime paths
+- Only `env/*.template` files are tracked in git
+
 ---
 
 ## n8n Workflow Development
@@ -94,6 +121,14 @@ The `alpine-utility` container is the bastion host for all automation.
 2. Create `env/.env.{service}.template`
 3. Update `README.md` port mappings and service list
 4. Test locally, then commit
+
+### Structural Change Checklist
+1. Update the runtime source file first
+2. Update the nearest README for that subsystem
+3. Update root `README.md` if the change affects user-visible setup or maintenance
+4. Update any relevant index files such as `docs/services/inventory.md` or `n8n-workflows/README.md`
+5. Remove stale references to retired paths, files, or services
+6. Run `bash scripts/audit_repo_docs.sh`
 
 ### Security Check Before Any Commit
 ```bash
@@ -126,7 +161,6 @@ git diff --cached | grep -iE "password|api_key|secret|token"
 | 8000 | OpenEDAI Speech |
 | 8080 | Open WebUI |
 | 8503 | Open Notebook |
-| 9428 | VictoriaLogs |
 | 13378 | AudioBookShelf |
 
 ---
@@ -185,6 +219,38 @@ rm ~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw
 6. **JavaScript over Python** in n8n
 7. **Stage specific files** — never `git add -A`
 8. **Commit co-authorship**: `Co-Authored-By: Claude <noreply@anthropic.com>`
+9. **Prefer canonical paths** — if duplicate names exist, use the path documented in `Canonical Paths`
+10. **Use negative rules literally** — if this file says “do not edit” or “do not create,” treat that as a hard stop
+
+## Promotion Policy
+
+Assistant trust levels for this repository:
+
+### L1 - Read Only
+- Allowed: inspect files, search the repo, compare runtime paths, and propose changes
+- Not allowed: modify files, create files, delete files, or rename files without explicit approval
+- Use when the assistant has recently violated canonical path or repo hygiene rules
+
+### L2 - Implementation Engineer
+- Allowed: implement well-scoped changes in canonical files after reading the relevant docs
+- Required: update related docs when changing behavior, verify runtime paths before editing, avoid duplicate file creation
+- Not allowed: make structural cleanup decisions without clear repo evidence or user approval
+
+### L3 - Trusted Engineer
+- Allowed: make small structural cleanup decisions, remove stale references, and reconcile docs with runtime behavior without step-by-step guidance
+- Required: consistently choose canonical files, catch stale docs proactively, and avoid unnecessary artifacts
+- Expected: treat repo hygiene as part of the task, not optional follow-up work
+
+### Promotion Gates
+- L1 to L2: 3 consecutive clean implementation tasks with no duplicate files, no wrong-file edits, and docs updated when needed
+- L2 to L3: 5 additional clean tasks that require path verification or small structural reasoning, with no supervision corrections
+- Any trust reduction trigger resets the streak for the current level
+
+### Trust Reduction Triggers
+- Editing a non-canonical duplicate when a canonical path is documented
+- Creating “backup”, “fixed”, “copy”, or “final” files without explicit approval
+- Leaving active docs inconsistent with the implemented runtime behavior
+- Treating retired services or files as active without verification
 
 ---
 

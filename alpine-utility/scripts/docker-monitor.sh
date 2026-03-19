@@ -165,6 +165,39 @@ echo "    \"healthy\": $GITEA_HEALTHY,"
 echo "    \"has_error\": $GITEA_ERROR"
 echo "  },"
 
+# Check Tailscale health
+TAILSCALE_STATUS=$(docker exec tailscale tailscale status --json 2>/dev/null | jq -r '.BackendState' 2>/dev/null)
+TAILSCALE_STATUS=${TAILSCALE_STATUS:-error}
+[ -z "$TAILSCALE_STATUS" ] && TAILSCALE_STATUS="error"
+
+# Check for key expiration/invalid key errors in recent logs (last hour)
+TAILSCALE_KEY_ERRORS=$(docker logs tailscale --since 1h 2>&1 | grep -c "invalid key: API key does not exist" 2>/dev/null || echo "0")
+TAILSCALE_KEY_ERRORS=$(echo "$TAILSCALE_KEY_ERRORS" | tr -d '\n\r' | xargs | sed 's/^0*//' | grep -E '^[0-9]+$' || echo "0")
+TAILSCALE_KEY_ERRORS=${TAILSCALE_KEY_ERRORS:-0}
+
+# Determine if Tailscale is healthy
+if [ "$TAILSCALE_STATUS" = "Running" ] && [ "$TAILSCALE_KEY_ERRORS" -eq 0 ]; then
+    TAILSCALE_HEALTHY="true"
+    TAILSCALE_ERROR="false"
+    TAILSCALE_MESSAGE="Connected"
+elif [ "$TAILSCALE_KEY_ERRORS" -gt 0 ]; then
+    TAILSCALE_HEALTHY="false"
+    TAILSCALE_ERROR="true"
+    TAILSCALE_MESSAGE="Auth key expired or invalid - regenerate at https://login.tailscale.com/admin/settings/keys"
+else
+    TAILSCALE_HEALTHY="false"
+    TAILSCALE_ERROR="true"
+    TAILSCALE_MESSAGE="Not connected - status: $TAILSCALE_STATUS"
+fi
+
+echo "  \"tailscale\": {"
+echo "    \"status\": \"$TAILSCALE_STATUS\","
+echo "    \"key_errors_last_hour\": $TAILSCALE_KEY_ERRORS,"
+echo "    \"healthy\": $TAILSCALE_HEALTHY,"
+echo "    \"has_error\": $TAILSCALE_ERROR,"
+echo "    \"message\": \"$TAILSCALE_MESSAGE\""
+echo "  },"
+
 # Get overall stats
 RUNNING=$(docker ps -q 2>/dev/null | wc -l | tr -d ' \n\r')
 STOPPED=$(docker ps -a -q -f status=exited 2>/dev/null | wc -l | tr -d ' \n\r')

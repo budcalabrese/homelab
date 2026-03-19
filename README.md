@@ -2,6 +2,20 @@
 
 Docker-based homelab running on Mac Mini (Texas).
 
+## Canonical Paths
+
+These are the main source-of-truth locations used by both humans and AI assistants:
+
+- Runtime automation scripts: `alpine-utility/scripts/`
+- Runtime container path for those scripts: `/scripts/`
+- Docker health monitor script: `alpine-utility/scripts/docker-monitor.sh`
+- n8n workflows: `n8n-workflows/`
+- Shared env file: `env/.env` (local only, gitignored)
+- Service env files: `env/.env.{service}` (local only, gitignored)
+- Committed env templates: `env/.env.template` and `env/.env.{service}.template`
+
+If a same-named file appears elsewhere, treat the path above as canonical unless the documentation explicitly says otherwise.
+
 ## Services
 
 ### Core
@@ -60,7 +74,7 @@ See [podcast-automation/README.md](podcast-automation/README.md) for setup.
    cp env/.env.openedai-speech.template env/.env.openedai-speech
    cp env/.env.tailscale.template env/.env.tailscale
    ```
-   Get actual secret values from `homelab-secrets` Gitea repo.
+   Get actual secret values from `homelab-secrets` Gitea repo. Only `*.template` files are committed here; `env/.env*` files remain local and gitignored.
 
 2. **Confirm path variables in `env/.env`**
    ```
@@ -109,7 +123,6 @@ See [podcast-automation/README.md](podcast-automation/README.md) for setup.
 | Wyoming Whisper | 10300 | - |
 | Wyoming Piper | 10200 | - |
 | Wyoming OpenWakeWord | 10400 | - |
-| Victoria Logs | 9428 | http://localhost:9428 |
 | Alpine Utility (SSH) | 2223 | ssh://localhost:2223 |
 
 **Volume location**: `/Volumes/docker/container_configs/` (network drive — all container data persists here, safe across Docker resets)
@@ -189,6 +202,7 @@ docker system prune -a --volumes
 # Verify before any commit to GitHub
 git ls-files | grep "env/"        # should ONLY show *.template files
 git check-ignore env/.env         # should output: env/.env
+bash scripts/audit_repo_docs.sh   # check docs, naming, and canonical paths
 ```
 
 ---
@@ -198,7 +212,13 @@ git check-ignore env/.env         # should output: env/.env
 - **Container data**: `/Volumes/docker/container_configs/` — back up this directory
 - **Secrets**: `env/.env*` files stored in Gitea `homelab-secrets` repo
 - **Gitea backup**: `docker exec alpine-utility /scripts/export_gitea_backup.sh`
-- See `alpine-utility/docker-monitor.sh` for automated health checks
+- See `alpine-utility/scripts/docker-monitor.sh` for automated health checks
+
+## Maintenance Notes
+
+- `compose.yml` bind-mounts `alpine-utility/scripts/` into the container at `/scripts`
+- When updating monitoring or backup automation, edit files in `alpine-utility/scripts/`
+- Do not create alternate copies of active scripts in sibling directories
 
 ---
 

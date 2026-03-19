@@ -13,14 +13,12 @@ All automation workflows for the homelab. Import JSON files via n8n UI → Workf
 | Karakeep Daily Backup | `Karakeep Daily Backup.json` | 2:00 AM daily | Backup Karakeep data |
 | Gitea Daily Backup | `Gitea Daily Backup.json` | 3:00 AM daily | Backup Gitea DB + repos |
 | Docker Health Monitor | `Docker Health Monitor.json` | 9 AM + 5 PM daily | Container health alerts |
-| VictoriaLogs Daily Digest | `victoria-logs-daily-digest.json` | 8:00 PM daily | Network health email |
 | Budget Export - Main | `budget-export-main.json` | Last day of month 11:55 PM | Export budget CSV/JSON |
-| Budget Export - GF | `budget-export-gf.json` | Last day of month 11:57 PM | Export GF budget CSV/JSON |
 | Youtube Aggregator | `Youtube Aggregator.json` | 12:00 PM daily | YouTube digest email |
 | Obsidian Monthly Summary | `Obsidian Monthly Summary Generator.json` | 1st of month 11 PM | AI summary of monthly notes |
 | Centralized Error Notification | `Centralized Error Notification.json` | Error trigger | Catch failed workflow runs |
 | News Aggregator | `News-Aggregator.json` | TBD | News digest |
-| SPYI & QQQI Downloader | `SPYI & QQQI 19a Downloader - Final.json` | TBD | Download SEC 19a filings → Gitea |
+| SPYI QQQI Downloader | `SPYI QQQI 19a Downloader.json` | TBD | Download SEC 19a filings → Gitea |
 
 ---
 
@@ -66,23 +64,14 @@ See [alpine-utility/scripts/README.md](../alpine-utility/scripts/README.md) for 
 ## Monitoring Workflows
 
 ### Docker Health Monitor
-Runs `/scripts/docker-monitor.sh` via SSH to alpine-utility twice daily. Monitors all container health + Gitea API. Emails on errors only.
-
-### VictoriaLogs Daily Digest
-Fetches 24h of logs from VictoriaLogs, analyzes with Ollama (Qwen2.5), sends HTML email with:
-- Threat level (Low/Medium/High/Critical)
-- Network health status
-- Problematic containers
-- Recommended actions
-
-**Requires:** VictoriaLogs running + `ollama pull qwen2.5:7b`
+Runs `/scripts/docker-monitor.sh` via SSH to alpine-utility twice daily. Monitors all container health, Gitea API, and Tailscale status. Emails on errors only.
 
 ---
 
 ## Budget Workflows
 
-### Budget Export - Main / GF
-Runs monthly export scripts via SSH to alpine-utility. Outputs CSV + JSON to `/Volumes/backups/budget-dashboard/`.
+### Budget Export - Main
+Runs the monthly export script via SSH to alpine-utility. Outputs CSV + JSON to `/Volumes/backups/budget-dashboard/`.
 
 ---
 
@@ -99,7 +88,7 @@ Daily digest of new videos from subscribed channels:
 
 **Requires:** YouTube Transcripts API running + Ollama with qwen2.5:7b
 
-### SPYI & QQQI Downloader
+### SPYI QQQI Downloader
 Scrapes SEC EDGAR for 19a filings, downloads PDFs via alpine-utility, commits to `financial-data` Gitea repo.
 
 ---
@@ -127,7 +116,7 @@ Runs on the 1st to summarize the previous month's weekly notes:
 | SSH Password account | SSH | All alpine-utility workflows |
 | AudioBookshelf API | Header Auth | Podcast generation |
 | SMTP | Email | Monitoring, backups |
-| Ollama Chat Model | Ollama | VictoriaLogs, YouTube, Obsidian summary |
+| Ollama Chat Model | Ollama | YouTube, Obsidian summary |
 
 ### Quick credential setup
 1. **Karakeep API token**: Karakeep → Settings → API Tokens → create "n8n Automation"

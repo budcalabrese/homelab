@@ -1,5 +1,10 @@
 # Repository Structure
 
+**Status**: Planning
+**Last Reviewed**: March 19, 2026
+
+This document describes intended organization and workflow preferences. If it conflicts with active repo instructions, follow `AGENTS.md`, root `README.md`, and current runtime configuration.
+
 Overview of the Git repository organization across GitHub and Gitea.
 
 ## GitHub Repos (Public/Private)
@@ -71,6 +76,4 @@ git add .env && git commit -m "Update API key" && git push origin main
 
 ## Branch Strategy
 
-Main branch only. Solo user — feature branches add complexity without benefit.
-
-Exception: major homelab changes can use a test branch before merging to main.
+Prefer `main` for routine solo changes. Short-lived branches are acceptable for risky structural work, larger refactors, or AI-assisted changes that need isolated review.
