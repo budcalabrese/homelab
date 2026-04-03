@@ -9,6 +9,12 @@
 
 The Synology NAS runs several media server and automation containers configured through the Container Manager UI. This document serves as infrastructure-as-code documentation for recreating the setup if needed.
 
+Current state note:
+
+- this document combines previously documented Synology services with operator-entered notes captured on March 24, 2026
+- some entries may represent stopped or older containers rather than currently running workloads
+- any entry marked for verification should be confirmed against the live Synology host before migration work
+
 ---
 
 ## Container Configurations
@@ -139,6 +145,8 @@ The Synology NAS runs several media server and automation containers configured 
 
 **Note:** Used by Jackett to bypass Cloudflare protection on torrent indexers.
 
+**Verification Note:** Manual notes captured on March 24, 2026 listed local port `32760` but omitted the container port. The previously documented value here is `8191` and should be treated as the expected container port until the live Synology config is checked.
+
 ---
 
 ### Lidarr (Music Management)
@@ -159,6 +167,8 @@ The Synology NAS runs several media server and automation containers configured 
 
 **Access:** `http://synology-nas:32770`
 
+**Verification Note:** Manual notes captured on March 24, 2026 listed container port `6767`. That conflicts with the previously documented `8686` and should be validated against the live container.
+
 ---
 
 ### Navidrome (Music Streaming Server)
@@ -177,6 +187,28 @@ The Synology NAS runs several media server and automation containers configured 
 | 32780 | 4533 | Web Interface |
 
 **Access:** `http://synology-nas:32780`
+
+**Verification Note:** Manual notes captured on March 24, 2026 listed the mount path as `docker/container_configs/lidarr -> /config` and container port `6767`. That conflicts with the previously documented Navidrome layout here and should be checked on the Synology host before any changes are made.
+
+---
+
+## Operator-Captured Inventory Notes
+
+The following notes were captured manually on March 24, 2026 and may include older or stopped containers. Keep them here as reference until the Synology host is verified directly.
+
+### Manual Mount and Port Notes
+
+| Service | Manual Notes |
+| --- | --- |
+| Sonarr | `docker/container_configs/sonarr -> /config`, `docker/extracted -> /extracted`, `docker/tv -> /tv`, `docker/watch -> /watch`, `docker/complete -> /complete`, `32700 -> 8989` |
+| Radarr | `docker/container_configs/radarr -> /config`, `docker/extracted -> /extracted`, `docker/movies -> /movies`, `docker/watch -> /watch`, `docker/complete -> /complete`, `32710 -> 7878` |
+| Jackett | `docker/container_configs/jackett -> /config`, `32720 -> 9117` |
+| Syncthing | `docker/watch -> /watch`, `docker/complete -> /complete`, `docker/container_configs/sync_thing -> /config`, `32730 -> 8384` |
+| Bazarr | `docker/container_configs/bazarr -> /config`, `docker/movies -> /movies`, `docker/tv -> /tv`, `32740 -> 6767` |
+| Overseerr | `32750 -> 5055` |
+| FlareSolverr | `32760 -> unknown`, container port not captured in manual notes |
+| Lidarr | `docker/container_configs/lidarr -> /config`, `docker/music -> /music`, `docker/complete -> /complete`, manual notes say `32770 -> 6767` |
+| Navidrome | manual notes say `docker/container_configs/lidarr -> /config`, `docker/music -> /music`, `32780 -> 6767`; this likely reflects a stale or mistaken entry and should be verified |
 
 ---
 
@@ -225,7 +257,7 @@ The Synology NAS runs several media server and automation containers configured 
 
 ---
 
-**Last Updated:** December 16, 2025
+**Last Updated:** March 24, 2026
 **Status:** Active - Synology NAS
 **Maintained By:** Bud
 **Related:** [Mac Mini Homelab](../README.md)
