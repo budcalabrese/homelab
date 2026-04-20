@@ -12,6 +12,7 @@ All automation workflows for the homelab. Import JSON files via n8n UI → Workf
 | Karakeep Bookmark Cleanup | `Karakeep Bookmark Cleanup.json` | 3:00 AM daily | Delete old podcasted bookmarks |
 | Karakeep Daily Backup | `Karakeep Daily Backup.json` | 2:00 AM daily | Backup Karakeep data |
 | Gitea Daily Backup | `Gitea Daily Backup.json` | 3:00 AM daily | Backup Gitea DB + repos |
+| Garage Daily Backup | `Garage Daily Backup.json` | 4:00 AM daily | Backup garage-tracker SQLite DB |
 | Docker Health Monitor | `Docker Health Monitor.json` | 9 AM + 5 PM daily | Container health alerts |
 | Budget Export - Main | `budget-export-main.json` | Last day of month 11:55 PM | Export budget CSV/JSON |
 | Youtube Aggregator | `Youtube Aggregator.json` | 12:00 PM daily | YouTube digest email |

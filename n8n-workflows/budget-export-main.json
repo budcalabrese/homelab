@@ -121,10 +121,7 @@
       "notes": "Verify export completed successfully"
     },
     {
-      "parameters": {
-        "message": "✓ Budget export completed successfully!\n\nOutput:\n{{ $json.stdout }}",
-        "options": {}
-      },
+      "parameters": {},
       "id": "success-notification",
       "name": "Success Notification",
       "type": "n8n-nodes-base.noOp",
@@ -133,22 +130,32 @@
         900,
         200
       ],
-      "notes": "Optional: Replace with actual notification node (Discord, Slack, etc.)"
+      "notes": "Silent success — no email needed"
     },
     {
       "parameters": {
-        "message": "✗ Budget export FAILED!\n\nError:\n{{ $json.stderr }}\n\nExit Code: {{ $json.exitCode }}",
+        "fromEmail": "golickmybutt@gmail.com",
+        "toEmail": "golickmybutt@gmail.com",
+        "subject": "❌ Budget Export Failed",
+        "emailFormat": "html",
+        "html": "=<h2>❌ Budget Export Failed</h2>\n<p><strong>Time:</strong> {{ $now.format('YYYY-MM-DD HH:mm:ss') }}</p>\n<p><strong>Exit Code:</strong> {{ $('Execute Export Script').first().json.code }}</p>\n<p><strong>Error Output:</strong></p>\n<pre style=\"background: #f5f5f5; padding: 10px; border: 1px solid #ddd;\">{{ $('Execute Export Script').first().json.stderr || 'No error output' }}</pre>\n<p><strong>Standard Output:</strong></p>\n<pre style=\"background: #f5f5f5; padding: 10px; border: 1px solid #ddd;\">{{ $('Execute Export Script').first().json.stdout || 'No output' }}</pre>",
         "options": {}
       },
       "id": "failure-notification",
       "name": "Failure Notification",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
       "position": [
         900,
         400
       ],
-      "notes": "Optional: Replace with actual notification node (Discord, Slack, etc.)"
+      "credentials": {
+        "smtp": {
+          "id": "DCxuQPQ2OqheCxzi",
+          "name": "SMTP account"
+        }
+      },
+      "notes": "Send email alert if budget export fails"
     }
   ],
   "connections": {
@@ -217,7 +224,10 @@
     }
   },
   "active": false,
-  "settings": {},
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "centralized-error-notification"
+  },
   "versionId": "1",
   "id": "budget-export-main",
   "meta": {
