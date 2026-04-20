@@ -89,7 +89,7 @@ services:
     cpus: "1.0"
 
   n8n:
-    image: n8nio/n8n:2.10.4
+    image: n8nio/n8n:latest
     container_name: n8n
     ports:
       - "5678:5678"
@@ -110,6 +110,9 @@ services:
       # Execution Recovery Settings
       - EXECUTIONS_DATA_PRUNE=true
       - EXECUTIONS_DATA_MAX_AGE=168
+
+      # Task Runners (required 2.11+)
+      - N8N_RUNNERS_ENABLED=true
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

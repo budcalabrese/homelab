@@ -192,10 +192,8 @@ lsof -i :{port}                # check port conflicts
 - Empty results → workflow stops if node returns no data (expected)
 
 **n8n crash loop after upgrade:**
-- **Pinned to version 2.10.4** due to incompatibility with 2.11.x task runner architecture
 - Symptom: "Last session crashed" + restarts after "Start Active Workflows"
-- Root cause: n8n 2.11+ requires task runners (internal or external mode)
-- Solution: Stay on 2.10.4 until task runner migration path is clearer
+- Root cause: n8n 2.11+ requires task runners — ensure `N8N_RUNNERS_ENABLED=true` is set in compose.yml
 - Database backup location: `/Volumes/docker/container_configs/n8n/database.sqlite.backup-*`
 
 **Docker Desktop won't start after update:**
