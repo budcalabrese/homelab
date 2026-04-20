@@ -45,7 +45,7 @@ docker stop garage-tracker
 
 cleanup() {
     echo "[3/3] Starting garage-tracker..."
-    docker start garage-tracker
+    docker start garage-tracker || true
     echo "✓ garage-tracker started"
     rmdir "$LOCKFILE" 2>/dev/null || true
 }
