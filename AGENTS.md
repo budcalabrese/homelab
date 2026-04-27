@@ -154,6 +154,7 @@ git diff --cached | grep -iE "password|api_key|secret|token"
 | Port | Service |
 |------|---------|
 | 2223 | alpine-utility SSH |
+| 9999 | Dozzle (localhost only) |
 | 3000 | Karakeep |
 | 3002 | Gitea |
 | 5001 | YouTube Transcripts API |

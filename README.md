@@ -123,6 +123,7 @@ See [podcast-automation/README.md](podcast-automation/README.md) for setup.
 | Wyoming Whisper | 10300 | - |
 | Wyoming Piper | 10200 | - |
 | Wyoming OpenWakeWord | 10400 | - |
+| Dozzle | 9999 | http://localhost:9999 |
 | Alpine Utility (SSH) | 2223 | ssh://localhost:2223 |
 
 **Volume location**: `/Volumes/docker/container_configs/` (network drive — all container data persists here, safe across Docker resets)
